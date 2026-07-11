@@ -92,7 +92,7 @@ end
 ---@return table
 function Lockers.Inventory.BuildClientItem(source, item, player)
     local label = item.display_name or getItemLabel(item.item_name)
-    local image = item.image or (Config.NUI.imageBase .. item.item_name .. '.png')
+    local image = item.image or ('%s%s.png'):format('nui://ox_inventory/web/images/', item.item_name)
     local allowed = Lockers.HasJobAccess(item.allowed_jobs, player.job, player.grade)
         and player.grade >= (item.minimum_grade or 0)
 

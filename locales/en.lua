@@ -12,6 +12,7 @@ Locales['en'] = {
     pin_locked = 'Locker locked for %s seconds.',
     key_missing = 'You do not have a valid key.',
     key_used = 'Key accepted.',
+    use_key = 'Use key',
     no_permission = 'No permission for this locker.',
     locker_disabled = 'This locker is disabled.',
     too_far = 'You are too far from the vehicle.',

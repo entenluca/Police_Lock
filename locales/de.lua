@@ -12,6 +12,7 @@ Locales['de'] = {
     pin_locked = 'Schließfach gesperrt für %s Sekunden.',
     key_missing = 'Du besitzt keinen gültigen Schlüssel.',
     key_used = 'Schlüssel akzeptiert.',
+    use_key = 'Schlüssel verwenden',
     no_permission = 'Keine Berechtigung für dieses Schließfach.',
     locker_disabled = 'Dieses Schließfach ist deaktiviert.',
     too_far = 'Du bist zu weit vom Fahrzeug entfernt.',

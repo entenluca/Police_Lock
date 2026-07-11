@@ -1,6 +1,6 @@
-# Police_Lock – Fahrzeug-Schließfachsystem
+# Police_Lock – Fahrzeug-Schließfachsystem (ESX + ox_lib)
 
-Performantes und sicheres **Fahrzeug-Schließfachsystem** für **ESX** mit **ox_inventory** und **ox_target**.
+Fahrzeug-Schließfächer für **ESX** mit **ox_inventory**, **ox_target** und **ox_lib** (keine HTML-NUI).
 
 ![Version](https://img.shields.io/badge/version-1.1.0-orange)
 ![FiveM](https://img.shields.io/badge/FiveM-ready-green)

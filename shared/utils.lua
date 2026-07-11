@@ -149,10 +149,44 @@ function Lockers.IsTrunkOpen(vehicle)
         return false
     end
 
-    local doorIndex = Config.Vehicle and Config.Vehicle.trunkDoorIndex or 5
-    local threshold = Config.Vehicle and Config.Vehicle.trunkOpenThreshold or 0.1
+    local doorIndices = Config.Vehicle and Config.Vehicle.trunkDoorIndices or { 5 }
+    local threshold = Config.Vehicle and Config.Vehicle.trunkOpenThreshold or 0.05
 
-    return GetVehicleDoorAngleRatio(vehicle, doorIndex) > threshold
+    for i = 1, #doorIndices do
+        local door = doorIndices[i]
+
+        if GetVehicleDoorAngleRatio(vehicle, door) > threshold then
+            return true
+        end
+
+        if IsVehicleDoorFullyOpen(vehicle, door) then
+            return true
+        end
+    end
+
+    return false
+end
+
+---@param key string
+---@return number|nil
+function Lockers.ResolveVehicleHash(key)
+    if not key or key == '' then
+        return nil
+    end
+
+    local numeric = tonumber(key)
+
+    if numeric then
+        return numeric
+    end
+
+    return joaat(key:lower())
+end
+
+---@param vehicle number
+---@return string
+function Lockers.GetVehicleKeyFromEntity(vehicle)
+    return tostring(GetEntityModel(vehicle))
 end
 
 ---@param plate string
@@ -201,8 +235,8 @@ function Lockers.VehicleMatchesLocker(locker, modelHash, plate)
     end
 
     if locker.vehicle_match_type == 'model' then
-        local key = locker.vehicle_key:lower()
-        return GetHashKey(key) == modelHash
+        local hash = Lockers.ResolveVehicleHash(locker.vehicle_key)
+        return hash ~= nil and hash == modelHash
     end
 
     return false

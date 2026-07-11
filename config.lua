@@ -10,12 +10,9 @@ Config.Locale = 'de'
 -- FAHRZEUG
 -- =============================================================================
 Config.Vehicle = {
-    --- Kofferraum-Bone für ox_target
-    targetBones = { 'boot' },
-    --- Fahrzeugtür-Index für Kofferraum (5 = Heckklappe)
-    trunkDoorIndex = 5,
-    --- Mindest-Öffnungswinkel (0.0–1.0) damit Target sichtbar wird
-    trunkOpenThreshold = 0.1,
+    targetBones = { 'boot', 'platelight' },
+    trunkDoorIndices = { 5 },
+    trunkOpenThreshold = 0.05,
     defaultDistance = 2.5,
 }
 
@@ -62,12 +59,10 @@ Config.Admin = {
 }
 
 -- =============================================================================
--- NUI
+-- UI (ox_lib)
 -- =============================================================================
-Config.NUI = {
+Config.UI = {
     confirmTakeThreshold = 10,
-    imageBase = 'nui://ox_inventory/web/images/',
-    fallbackImage = 'nui://ox_inventory/web/images/placeholder.png',
 }
 
 -- =============================================================================

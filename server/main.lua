@@ -41,7 +41,7 @@ local function buildLockerPayload(source, locker, token)
             confirm_no = Lockers.L('confirm_no'),
             loading = Lockers.L('loading'),
         },
-        confirm_threshold = Config.NUI.confirmTakeThreshold,
+        confirm_threshold = Config.UI.confirmTakeThreshold,
     }
 end
 
@@ -403,4 +403,14 @@ end)
 
 exports('ReloadLockers', function()
     Lockers.DB.Reload()
+end)
+
+RegisterNetEvent('lockers:server:requestSync', function()
+    local source = source
+
+    if not Lockers.DB.IsReady() then
+        return
+    end
+
+    TriggerClientEvent('lockers:client:syncLockers', source, Lockers.DB.GetClientCache())
 end)
