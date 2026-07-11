@@ -10,10 +10,14 @@ Config.Locale = 'de'
 -- FAHRZEUG
 -- =============================================================================
 Config.Vehicle = {
-    targetBones = { 'boot', 'platelight' },
-    trunkDoorIndices = { 5 },
+    --- Optional: Zielpunkt nur an bestimmten Bones (leer = ganzes Fahrzeug)
+    targetBones = nil,
+    --- true = ox_target nur bei offenem Kofferraum; false = Ziel sichtbar, Kofferraum wird beim Benutzen geprüft
+    requireTrunkOpenForTarget = false,
+    trunkDoorIndices = { 5, 4, 6 },
     trunkOpenThreshold = 0.05,
     defaultDistance = 2.5,
+    maxTargetDistance = 5.0,
 }
 
 -- =============================================================================

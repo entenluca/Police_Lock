@@ -132,6 +132,11 @@ RegisterNetEvent('lockers:server:adminSaveLocker', function(data)
         return
     end
 
+    if locker.enabled and (locker.vehicle_key == '' or not locker.vehicle_key:match('%S')) then
+        notify(source, Lockers.L('admin_vehicle_key_required'), 'error')
+        return
+    end
+
     local player = Lockers.Framework.GetPlayer(source)
     local pinHash
 

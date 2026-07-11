@@ -282,6 +282,23 @@ Geloggte Informationen: Spielername, Identifier, Schließfach, Aktion, Item, Men
 
 ---
 
+## ox_target zeigt keine Interaktion?
+
+1. **Schließfach in der DB prüfen** — `/lockeradmin` → Schließfach muss **aktiv** sein und **Fahrzeugmodell** (z. B. `police`) oder Kennzeichen haben
+2. **Richtiges Fahrzeug** — Spawn-Name muss exakt passen (`police`, nicht `Polizei`). Im Admin: **„Vom aktuellen Fahrzeug übernehmen"** nutzen
+3. **Kofferraum öffnen** — Beim Benutzen muss der Kofferraum offen sein. Das Ziel erscheint standardmäßig am Fahrzeug; nur bei `Config.Vehicle.requireTrunkOpenForTarget = true` erst nach Öffnen
+4. **Resource-Reihenfolge** — `ox_target` vor `Police_Lock` in der `server.cfg`
+5. **Debug** — `Config.Debug = true`, dann `/lockertarget` am Fahrzeug: zeigt Modell-Hash, zugeordnetes Schließfach und Kofferraum-Status in F8
+
+```lua
+Config.Vehicle = {
+    requireTrunkOpenForTarget = false, -- Ziel sofort sichtbar, Kofferraum wird beim Klick geprüft
+    targetBones = nil,                 -- nil = ganzes Fahrzeug, nicht nur Heck-Bone
+}
+```
+
+---
+
 ## Sicherheit
 
 - PIN wird mit **SHA-512 + Salt** gehasht – niemals Klartext in DB oder an Client
@@ -333,10 +350,6 @@ Police_Lock/
 │   ├── inventory.lua
 │   ├── admin.lua
 │   └── main.lua
-├── web/
-│   ├── index.html
-│   ├── style.css
-│   └── app.js
 └── locales/
     ├── de.lua
     └── en.lua

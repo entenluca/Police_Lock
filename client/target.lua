@@ -2,8 +2,8 @@ Lockers = Lockers or {}
 Lockers.Client = Lockers.Client or {}
 
 local lockers = {}
-local registeredModels = {}
 local globalTargetRegistered = false
+local hasReceivedSync = false
 
 function Lockers.Client.GetLockers()
     return lockers
@@ -26,13 +26,26 @@ function Lockers.Client.HasLocker(entity)
 end
 
 ---@param entity number
+---@param distance number|nil
 ---@return boolean
-function Lockers.Client.CanInteractWithLocker(entity)
+function Lockers.Client.CanInteractWithLocker(entity, distance)
     if not Lockers.Client.HasLocker(entity) then
         return false
     end
 
-    return Lockers.IsTrunkOpen(entity)
+    local lockerId = Lockers.Client.GetLockerForVehicle(entity)
+    local locker = lockerId and lockers[lockerId]
+    local maxDistance = (locker and locker.target_distance) or Config.Vehicle.defaultDistance or 2.5
+
+    if distance and distance > maxDistance then
+        return false
+    end
+
+    if Config.Vehicle.requireTrunkOpenForTarget then
+        return Lockers.IsTrunkOpen(entity)
+    end
+
+    return true
 end
 
 local function openVehicleLocker(entity)
@@ -52,29 +65,32 @@ local function openVehicleLocker(entity)
 end
 
 local function buildTargetOption()
-    return {
+    local option = {
         name = 'police_lock_locker',
         icon = 'fa-solid fa-box-open',
         label = Lockers.L('open_locker'),
-        bones = Config.Vehicle.targetBones or { 'boot' },
-        distance = Config.Vehicle.defaultDistance or 2.5,
-        canInteract = function(entity)
-            return Lockers.Client.CanInteractWithLocker(entity)
+        distance = Config.Vehicle.maxTargetDistance or 5.0,
+        canInteract = function(entity, distance)
+            return Lockers.Client.CanInteractWithLocker(entity, distance)
         end,
         onSelect = function(data)
             openVehicleLocker(data.entity)
         end,
     }
+
+    local bones = Config.Vehicle.targetBones
+
+    if type(bones) == 'table' and #bones > 0 then
+        option.bones = bones
+    elseif type(bones) == 'string' and bones ~= '' then
+        option.bones = { bones }
+    end
+
+    return option
 end
 
 local function clearTargets()
-    for hash in pairs(registeredModels) do
-        exports.ox_target:removeModel(hash)
-    end
-
-    registeredModels = {}
-
-    if globalTargetRegistered then
+    if globalTargetRegistered and GetResourceState('ox_target') == 'started' then
         exports.ox_target:removeGlobalVehicle('police_lock_locker')
         globalTargetRegistered = false
     end
@@ -82,61 +98,75 @@ end
 
 local function registerTargets()
     if GetResourceState('ox_target') ~= 'started' then
+        Lockers.Debug('ox_target noch nicht gestartet')
         return
     end
 
     clearTargets()
+    exports.ox_target:addGlobalVehicle({ buildTargetOption() })
+    globalTargetRegistered = true
 
-    local option = buildTargetOption()
-    local modelHashes = {}
-    local hasPlateLocker = false
+    local count = 0
 
-    for _, locker in pairs(lockers) do
-        if locker.enabled then
-            if locker.vehicle_match_type == 'model' and locker.vehicle_key and locker.vehicle_key ~= '' then
-                local hash = Lockers.ResolveVehicleHash(locker.vehicle_key)
-
-                if hash and not modelHashes[hash] then
-                    modelHashes[hash] = true
-                    exports.ox_target:addModel(hash, { option })
-                    registeredModels[hash] = true
-                    Lockers.Debug(('ox_target Modell registriert: %s (%s)'):format(locker.vehicle_key, hash))
-                end
-            elseif locker.vehicle_match_type == 'plate' then
-                hasPlateLocker = true
-            end
-        end
+    for _ in pairs(lockers) do
+        count += 1
     end
 
-    if hasPlateLocker or not next(modelHashes) then
-        exports.ox_target:addGlobalVehicle({ option })
-        globalTargetRegistered = true
-        Lockers.Debug('ox_target GlobalVehicle registriert')
-    end
+    Lockers.Debug(('ox_target registriert (%s Schließfächer)'):format(count))
 end
 
-RegisterNetEvent('lockers:client:syncLockers', function(data)
+local function applyLockerSync(data)
     lockers = {}
 
     for i = 1, #(data or {}) do
         lockers[data[i].id] = data[i]
     end
 
+    hasReceivedSync = true
     registerTargets()
+end
+
+RegisterNetEvent('lockers:client:syncLockers', function(data)
+    applyLockerSync(data)
 end)
 
-CreateThread(function()
-    Wait(1500)
+local function requestLockerSync()
     TriggerServerEvent('lockers:server:requestSync')
+end
+
+CreateThread(function()
+    local delays = { 500, 1500, 3000, 6000, 10000 }
+
+    for i = 1, #delays do
+        Wait(delays[i])
+
+        if GetResourceState('ox_target') == 'started' then
+            registerTargets()
+        end
+
+        if not hasReceivedSync then
+            requestLockerSync()
+        else
+            break
+        end
+    end
 end)
 
 AddEventHandler('onResourceStart', function(resourceName)
     if resourceName == GetCurrentResourceName() or resourceName == 'ox_target' then
-        SetTimeout(1000, function()
-            TriggerServerEvent('lockers:server:requestSync')
+        SetTimeout(500, function()
+            requestLockerSync()
             registerTargets()
         end)
     end
+end)
+
+RegisterNetEvent('esx:playerLoaded', function()
+    SetTimeout(1000, requestLockerSync)
+end)
+
+RegisterNetEvent('esx:onPlayerSpawn', function()
+    SetTimeout(1000, requestLockerSync)
 end)
 
 AddEventHandler('onResourceStop', function(resourceName)
@@ -144,3 +174,44 @@ AddEventHandler('onResourceStop', function(resourceName)
         clearTargets()
     end
 end)
+
+if Config.Debug then
+    RegisterCommand('lockertarget', function()
+        local ped = PlayerPedId()
+        local coords = GetEntityCoords(ped)
+        local vehicle = lib.getClosestVehicle(coords, 8.0, false)
+        local count = 0
+
+        for _ in pairs(lockers) do
+            count += 1
+        end
+
+        print('^3[Police_Lock]^7 Sync:', hasReceivedSync, '| Schließfächer:', count, '| ox_target:', GetResourceState('ox_target'))
+
+        if not vehicle or vehicle == 0 then
+            print('^3[Police_Lock]^7 Kein Fahrzeug in der Nähe')
+            return
+        end
+
+        local model = GetEntityModel(vehicle)
+        local plate = GetVehicleNumberPlateText(vehicle)
+        local lockerId = Lockers.Client.GetLockerForVehicle(vehicle)
+
+        print(('^3[Police_Lock]^7 Fahrzeug hash=%s plate=%s locker=%s trunk=%s canInteract=%s'):format(
+            model,
+            plate,
+            lockerId or 'keins',
+            Lockers.IsTrunkOpen(vehicle),
+            Lockers.Client.CanInteractWithLocker(vehicle, 2.0)
+        ))
+
+        for id, locker in pairs(lockers) do
+            print(('  #%s %s | %s=%s'):format(
+                id,
+                locker.name,
+                locker.vehicle_match_type,
+                locker.vehicle_key or '-'
+            ))
+        end
+    end, false)
+end

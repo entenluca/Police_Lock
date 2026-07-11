@@ -408,9 +408,25 @@ end)
 RegisterNetEvent('lockers:server:requestSync', function()
     local source = source
 
-    if not Lockers.DB.IsReady() then
+    local function sendSync()
+        TriggerClientEvent('lockers:client:syncLockers', source, Lockers.DB.GetClientCache())
+    end
+
+    if Lockers.DB.IsReady() then
+        sendSync()
         return
     end
 
-    TriggerClientEvent('lockers:client:syncLockers', source, Lockers.DB.GetClientCache())
+    CreateThread(function()
+        local attempts = 0
+
+        while not Lockers.DB.IsReady() and attempts < 40 do
+            Wait(500)
+            attempts += 1
+        end
+
+        if Lockers.DB.IsReady() then
+            sendSync()
+        end
+    end)
 end)
