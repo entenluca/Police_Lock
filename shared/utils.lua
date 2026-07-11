@@ -142,6 +142,54 @@ function Lockers.Debug(...)
     end
 end
 
+---@param value any
+---@param default boolean|nil
+---@return boolean
+function Lockers.ToBool(value, default)
+    if value == nil then
+        return default == true
+    end
+
+    if value == true or value == 1 or value == '1' or value == 'true' or value == 'on' then
+        return true
+    end
+
+    if value == false or value == 0 or value == '0' or value == 'false' or value == 'off' then
+        return false
+    end
+
+    return default == true
+end
+
+---@param row table
+---@param key string
+---@return boolean
+function Lockers.RowBool(row, key)
+    local value = row[key]
+    return value == 1 or value == true
+end
+
+---@param input table|nil
+---@param name string
+---@param index number|nil
+---@param default any
+---@return any
+function Lockers.GetDialogValue(input, name, index, default)
+    if type(input) ~= 'table' then
+        return default
+    end
+
+    if input[name] ~= nil then
+        return input[name]
+    end
+
+    if index and input[index] ~= nil then
+        return input[index]
+    end
+
+    return default
+end
+
 ---@param vehicle number
 ---@return boolean
 function Lockers.IsTrunkOpen(vehicle)

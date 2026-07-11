@@ -114,25 +114,25 @@ local function editLockerDialog(entry, onComplete)
     end
 
     local input = lib.inputDialog(Lockers.L('admin_edit'), {
-        { type = 'input', label = Lockers.L('admin_name'), default = locker.name or '', required = true },
-        { type = 'textarea', label = Lockers.L('admin_description'), default = locker.description or '' },
-        { type = 'select', label = Lockers.L('admin_access_mode'), options = #accessOptions > 0 and accessOptions or {
+        { type = 'input', name = 'name', label = Lockers.L('admin_name'), default = locker.name or '', required = true },
+        { type = 'textarea', name = 'description', label = Lockers.L('admin_description'), default = locker.description or '' },
+        { type = 'select', name = 'access_mode', label = Lockers.L('admin_access_mode'), options = #accessOptions > 0 and accessOptions or {
             { value = 'pin_or_key', label = Lockers.L('access_pin_or_key') },
         }, default = locker.access_mode or 'pin_or_key' },
-        { type = 'select', label = Lockers.L('admin_vehicle_match'), options = #matchOptions > 0 and matchOptions or {
+        { type = 'select', name = 'vehicle_match_type', label = Lockers.L('admin_vehicle_match'), options = #matchOptions > 0 and matchOptions or {
             { value = 'model', label = Lockers.L('vehicle_match_model') },
         }, default = locker.vehicle_match_type or 'model' },
-        { type = 'input', label = Lockers.L('admin_vehicle_key'), default = locker.vehicle_key or '', description = 'Spawn-Name (police) oder Kennzeichen' },
-        { type = 'input', label = Lockers.L('admin_pin'), password = true, description = 'Leer lassen = unverändert' },
-        { type = 'input', label = Lockers.L('admin_key_item'), default = locker.key_item or '' },
-        { type = 'number', label = Lockers.L('admin_grade'), default = locker.minimum_grade or 0 },
-        { type = 'number', label = Lockers.L('admin_distance'), default = locker.target_distance or 2.5 },
-        { type = 'number', label = Lockers.L('admin_slots'), default = locker.slots or 50 },
-        { type = 'number', label = Lockers.L('admin_weight'), default = locker.max_weight or 100000 },
-        { type = 'checkbox', label = Lockers.L('admin_enabled'), checked = locker.enabled ~= false },
-        { type = 'checkbox', label = Lockers.L('admin_key_consume'), checked = locker.key_consume == true },
-        { type = 'checkbox', label = Lockers.L('admin_auto_restock'), checked = locker.auto_restock == true },
-        { type = 'number', label = Lockers.L('admin_restock_interval'), default = locker.restock_interval or 3600, min = 60 },
+        { type = 'input', name = 'vehicle_key', label = Lockers.L('admin_vehicle_key'), default = locker.vehicle_key or '', description = 'Spawn-Name (police) oder Kennzeichen' },
+        { type = 'input', name = 'pin', label = Lockers.L('admin_pin'), password = true, description = 'Leer lassen = unverändert' },
+        { type = 'input', name = 'key_item', label = Lockers.L('admin_key_item'), default = locker.key_item or '' },
+        { type = 'number', name = 'minimum_grade', label = Lockers.L('admin_grade'), default = locker.minimum_grade or 0 },
+        { type = 'number', name = 'target_distance', label = Lockers.L('admin_distance'), default = locker.target_distance or 2.5 },
+        { type = 'number', name = 'slots', label = Lockers.L('admin_slots'), default = locker.slots or 50 },
+        { type = 'number', name = 'max_weight', label = Lockers.L('admin_weight'), default = locker.max_weight or 100000 },
+        { type = 'checkbox', name = 'enabled', label = Lockers.L('admin_enabled'), checked = locker.enabled ~= false },
+        { type = 'checkbox', name = 'key_consume', label = Lockers.L('admin_key_consume'), checked = locker.key_consume == true },
+        { type = 'checkbox', name = 'auto_restock', label = Lockers.L('admin_auto_restock'), checked = locker.auto_restock == true },
+        { type = 'number', name = 'restock_interval', label = Lockers.L('admin_restock_interval'), default = locker.restock_interval or 3600, min = 60 },
     })
 
     if not input then
@@ -142,80 +142,86 @@ local function editLockerDialog(entry, onComplete)
         return
     end
 
+    local pin = Lockers.GetDialogValue(input, 'pin', 6, '')
+
     TriggerServerEvent('lockers:server:adminSaveLocker', lockerToSavePayload(locker, {
-        name = input[1],
-        description = input[2],
-        access_mode = input[3],
-        vehicle_match_type = input[4],
-        vehicle_key = input[5],
-        pin = input[6] ~= '' and input[6] or nil,
-        keep_pin = input[6] == '' and locker.has_pin,
-        key_item = input[7],
-        minimum_grade = input[8],
-        target_distance = input[9],
-        slots = input[10],
-        max_weight = input[11],
-        enabled = input[12],
-        key_consume = input[13],
-        auto_restock = input[14],
-        restock_interval = input[15],
+        name = Lockers.GetDialogValue(input, 'name', 1, ''),
+        description = Lockers.GetDialogValue(input, 'description', 2, ''),
+        access_mode = Lockers.GetDialogValue(input, 'access_mode', 3, 'pin_or_key'),
+        vehicle_match_type = Lockers.GetDialogValue(input, 'vehicle_match_type', 4, 'model'),
+        vehicle_key = Lockers.GetDialogValue(input, 'vehicle_key', 5, ''),
+        pin = pin ~= '' and pin or nil,
+        keep_pin = pin == '' and locker.has_pin,
+        key_item = Lockers.GetDialogValue(input, 'key_item', 7, ''),
+        minimum_grade = Lockers.GetDialogValue(input, 'minimum_grade', 8, 0),
+        target_distance = Lockers.GetDialogValue(input, 'target_distance', 9, 2.5),
+        slots = Lockers.GetDialogValue(input, 'slots', 10, 50),
+        max_weight = Lockers.GetDialogValue(input, 'max_weight', 11, 100000),
+        enabled = Lockers.ToBool(Lockers.GetDialogValue(input, 'enabled', 12, true), true),
+        key_consume = Lockers.ToBool(Lockers.GetDialogValue(input, 'key_consume', 13, false), false),
+        auto_restock = Lockers.ToBool(Lockers.GetDialogValue(input, 'auto_restock', 14, false), false),
+        restock_interval = Lockers.GetDialogValue(input, 'restock_interval', 15, 3600),
     }))
 end
 
 local function addItemDialog(lockerId)
     local input = lib.inputDialog(Lockers.L('admin_add_item'), {
-        { type = 'input', label = Lockers.L('admin_item_name'), required = true },
-        { type = 'input', label = Lockers.L('admin_item_label'), description = 'Optional' },
-        { type = 'number', label = Lockers.L('admin_item_amount'), default = 1, min = 0 },
-        { type = 'number', label = Lockers.L('admin_max_stock'), default = 0, min = 0, description = Lockers.L('admin_max_stock_hint') },
-        { type = 'number', label = Lockers.L('admin_max_take'), default = 1, min = 1 },
-        { type = 'number', label = Lockers.L('admin_grade'), default = 0, min = 0 },
-        { type = 'checkbox', label = Lockers.L('admin_returnable'), checked = true },
-        { type = 'checkbox', label = Lockers.L('admin_unlimited'), checked = false },
+        { type = 'input', name = 'item_name', label = Lockers.L('admin_item_name'), required = true },
+        { type = 'input', name = 'display_name', label = Lockers.L('admin_item_label'), description = 'Optional' },
+        { type = 'number', name = 'amount', label = Lockers.L('admin_item_amount'), default = 1, min = 0 },
+        { type = 'number', name = 'maximum_amount', label = Lockers.L('admin_max_stock'), default = 0, min = 0, description = Lockers.L('admin_max_stock_hint') },
+        { type = 'number', name = 'maximum_take_amount', label = Lockers.L('admin_max_take'), default = 1, min = 1 },
+        { type = 'number', name = 'minimum_grade', label = Lockers.L('admin_grade'), default = 0, min = 0 },
+        { type = 'checkbox', name = 'returnable', label = Lockers.L('admin_returnable'), checked = true },
+        { type = 'checkbox', name = 'unlimited', label = Lockers.L('admin_unlimited'), checked = false },
     })
 
     if not input then
         return
     end
 
+    local displayName = Lockers.GetDialogValue(input, 'display_name', 2, '')
+
     TriggerServerEvent('lockers:server:adminSaveItem', lockerId, {
-        item_name = input[1],
-        display_name = input[2] ~= '' and input[2] or nil,
-        amount = input[3],
-        maximum_amount = input[4],
-        maximum_take_amount = input[5],
-        minimum_grade = input[6],
-        returnable = input[7],
-        unlimited = input[8],
+        item_name = Lockers.GetDialogValue(input, 'item_name', 1, ''),
+        display_name = displayName ~= '' and displayName or nil,
+        amount = Lockers.GetDialogValue(input, 'amount', 3, 1),
+        maximum_amount = Lockers.GetDialogValue(input, 'maximum_amount', 4, 0),
+        maximum_take_amount = Lockers.GetDialogValue(input, 'maximum_take_amount', 5, 1),
+        minimum_grade = Lockers.GetDialogValue(input, 'minimum_grade', 6, 0),
+        returnable = Lockers.ToBool(Lockers.GetDialogValue(input, 'returnable', 7, true), true),
+        unlimited = Lockers.ToBool(Lockers.GetDialogValue(input, 'unlimited', 8, false), false),
     })
 end
 
 local function editItemDialog(lockerId, item)
     local input = lib.inputDialog(Lockers.L('admin_edit_item'), {
-        { type = 'input', label = Lockers.L('admin_item_name'), default = item.item_name, required = true },
-        { type = 'input', label = Lockers.L('admin_item_label'), default = item.display_name or '' },
-        { type = 'number', label = Lockers.L('admin_item_amount'), default = item.amount or 0, min = 0 },
-        { type = 'number', label = Lockers.L('admin_max_stock'), default = item.maximum_amount or 0, min = 0, description = Lockers.L('admin_max_stock_hint') },
-        { type = 'number', label = Lockers.L('admin_max_take'), default = item.maximum_take_amount or 1, min = 1 },
-        { type = 'number', label = Lockers.L('admin_grade'), default = item.minimum_grade or 0, min = 0 },
-        { type = 'checkbox', label = Lockers.L('admin_returnable'), checked = item.returnable ~= false },
-        { type = 'checkbox', label = Lockers.L('admin_unlimited'), checked = item.unlimited == true },
+        { type = 'input', name = 'item_name', label = Lockers.L('admin_item_name'), default = item.item_name, required = true },
+        { type = 'input', name = 'display_name', label = Lockers.L('admin_item_label'), default = item.display_name or '' },
+        { type = 'number', name = 'amount', label = Lockers.L('admin_item_amount'), default = item.amount or 0, min = 0 },
+        { type = 'number', name = 'maximum_amount', label = Lockers.L('admin_max_stock'), default = item.maximum_amount or 0, min = 0, description = Lockers.L('admin_max_stock_hint') },
+        { type = 'number', name = 'maximum_take_amount', label = Lockers.L('admin_max_take'), default = item.maximum_take_amount or 1, min = 1 },
+        { type = 'number', name = 'minimum_grade', label = Lockers.L('admin_grade'), default = item.minimum_grade or 0, min = 0 },
+        { type = 'checkbox', name = 'returnable', label = Lockers.L('admin_returnable'), checked = item.returnable ~= false },
+        { type = 'checkbox', name = 'unlimited', label = Lockers.L('admin_unlimited'), checked = item.unlimited == true },
     })
 
     if not input then
         return
     end
 
+    local displayName = Lockers.GetDialogValue(input, 'display_name', 2, '')
+
     TriggerServerEvent('lockers:server:adminSaveItem', lockerId, {
         id = item.id,
-        item_name = input[1],
-        display_name = input[2] ~= '' and input[2] or nil,
-        amount = input[3],
-        maximum_amount = input[4],
-        maximum_take_amount = input[5],
-        minimum_grade = input[6],
-        returnable = input[7],
-        unlimited = input[8],
+        item_name = Lockers.GetDialogValue(input, 'item_name', 1, item.item_name),
+        display_name = displayName ~= '' and displayName or nil,
+        amount = Lockers.GetDialogValue(input, 'amount', 3, item.amount),
+        maximum_amount = Lockers.GetDialogValue(input, 'maximum_amount', 4, item.maximum_amount),
+        maximum_take_amount = Lockers.GetDialogValue(input, 'maximum_take_amount', 5, item.maximum_take_amount),
+        minimum_grade = Lockers.GetDialogValue(input, 'minimum_grade', 6, item.minimum_grade),
+        returnable = Lockers.ToBool(Lockers.GetDialogValue(input, 'returnable', 7, item.returnable ~= false), true),
+        unlimited = Lockers.ToBool(Lockers.GetDialogValue(input, 'unlimited', 8, item.unlimited == true), false),
     })
 end
 

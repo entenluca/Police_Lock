@@ -28,16 +28,16 @@ local function sanitizeLockerData(data)
         pin = data.pin,
         key_item = data.key_item ~= '' and data.key_item or nil,
         key_metadata = Lockers.DecodeJSON(data.key_metadata),
-        key_consume = data.key_consume == true,
+        key_consume = Lockers.ToBool(data.key_consume, false),
         key_job_restrict = Lockers.DecodeJSON(data.key_job_restrict),
         allowed_jobs = Lockers.DecodeJSON(data.allowed_jobs),
         minimum_grade = math.max(tonumber(data.minimum_grade) or 0, 0),
         allowed_identifiers = type(data.allowed_identifiers) == 'table' and data.allowed_identifiers or {},
         slots = math.min(math.max(tonumber(data.slots) or 50, 1), 500),
         max_weight = math.min(math.max(tonumber(data.max_weight) or 100000, 1000), 10000000),
-        auto_restock = data.auto_restock == true,
+        auto_restock = Lockers.ToBool(data.auto_restock, false),
         restock_interval = math.max(tonumber(data.restock_interval) or 3600, 60),
-        enabled = data.enabled ~= false,
+        enabled = Lockers.ToBool(data.enabled, true),
     }
 end
 
@@ -59,13 +59,13 @@ local function sanitizeItemData(data, lockerId)
         minimum_grade = math.max(tonumber(data.minimum_grade) or 0, 0),
         allowed_jobs = Lockers.DecodeJSON(data.allowed_jobs),
         metadata = Lockers.DecodeJSON(data.metadata),
-        returnable = data.returnable ~= false,
-        unlimited = data.unlimited == true,
+        returnable = Lockers.ToBool(data.returnable, true),
+        unlimited = Lockers.ToBool(data.unlimited, false),
         cooldown = math.max(tonumber(data.cooldown) or 0, 0),
         locker_cooldown = math.max(tonumber(data.locker_cooldown) or 0, 0),
         price = math.max(tonumber(data.price) or 0, 0),
         deposit = math.max(tonumber(data.deposit) or 0, 0),
-        personal_bind = data.personal_bind == true,
+        personal_bind = Lockers.ToBool(data.personal_bind, false),
         sort_order = tonumber(data.sort_order) or 0,
     }
 end
