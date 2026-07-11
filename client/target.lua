@@ -4,6 +4,7 @@ Lockers.Client = Lockers.Client or {}
 local lockers = {}
 local globalTargetRegistered = false
 local hasReceivedSync = false
+local lastSyncedCount = -1
 
 function Lockers.Client.GetLockers()
     return lockers
@@ -112,7 +113,10 @@ local function registerTargets()
         count = count + 1
     end
 
-    Lockers.Debug(('ox_target registriert (%s Schließfächer)'):format(count))
+    if Config.Debug and count ~= lastSyncedCount then
+        lastSyncedCount = count
+        Lockers.Debug(('ox_target aktiv | %s Schließfächer synchronisiert'):format(count))
+    end
 end
 
 local function applyLockerSync(data)
@@ -124,6 +128,11 @@ local function applyLockerSync(data)
 
     hasReceivedSync = true
     registerTargets()
+
+    if Config.Debug then
+        local count = #(data or {})
+        print(('^2[Police_Lock]^7 %s Schließfächer vom Server empfangen'):format(count))
+    end
 end
 
 RegisterNetEvent('lockers:client:syncLockers', function(data)

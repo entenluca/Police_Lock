@@ -103,6 +103,16 @@ local function buildAdminPayload(source)
     }
 end
 
+local function openAdminFor(source, selectedLockerId)
+    local payload = buildAdminPayload(source)
+
+    if selectedLockerId then
+        payload.selected_locker_id = selectedLockerId
+    end
+
+    TriggerClientEvent('lockers:client:openAdmin', source, payload)
+end
+
 RegisterNetEvent('lockers:server:adminOpenRequest', function()
     local source = source
 
@@ -220,14 +230,48 @@ RegisterNetEvent('lockers:server:adminSaveLocker', function(data)
 
     Lockers.DB.Reload()
     notify(source, Lockers.L('admin_saved'), 'success')
+    openAdminFor(source, locker.id)
+end)
 
-    local payload = buildAdminPayload(source)
+RegisterNetEvent('lockers:server:adminToggleAutoRestock', function(lockerId)
+    local source = source
 
-    if isNew and locker.id then
-        payload.selected_locker_id = locker.id
+    if not Lockers.Framework.IsAdmin(source) or type(lockerId) ~= 'number' then
+        return
     end
 
-    TriggerClientEvent('lockers:client:openAdmin', source, payload)
+    local locker = Lockers.DB.GetLocker(lockerId)
+
+    if not locker then
+        return
+    end
+
+    MySQL.update.await('UPDATE lockers SET auto_restock = ? WHERE id = ?', {
+        locker.auto_restock and 0 or 1,
+        lockerId,
+    })
+
+    Lockers.DB.Reload()
+    notify(source, Lockers.L('admin_saved'), 'success')
+    openAdminFor(source, lockerId)
+end)
+
+RegisterNetEvent('lockers:server:adminAssignVehicle', function(lockerId, vehicleKey)
+    local source = source
+
+    if not Lockers.Framework.IsAdmin(source) or type(lockerId) ~= 'number' or not vehicleKey or vehicleKey == '' then
+        return
+    end
+
+    MySQL.update.await('UPDATE lockers SET vehicle_match_type = ?, vehicle_key = ? WHERE id = ?', {
+        'model',
+        tostring(vehicleKey):sub(1, 50),
+        lockerId,
+    })
+
+    Lockers.DB.Reload()
+    notify(source, Lockers.L('admin_vehicle_assigned'), 'success')
+    openAdminFor(source, lockerId)
 end)
 
 RegisterNetEvent('lockers:server:adminDeleteLocker', function(lockerId)
@@ -253,7 +297,7 @@ RegisterNetEvent('lockers:server:adminDeleteLocker', function(lockerId)
     MySQL.update.await('DELETE FROM lockers WHERE id = ?', { lockerId })
     Lockers.DB.Reload()
     notify(source, Lockers.L('admin_deleted'), 'success')
-    TriggerClientEvent('lockers:client:openAdmin', source, buildAdminPayload(source))
+    openAdminFor(source, nil)
 end)
 
 RegisterNetEvent('lockers:server:adminDuplicateLocker', function(lockerId)
@@ -328,10 +372,8 @@ RegisterNetEvent('lockers:server:adminDuplicateLocker', function(lockerId)
     end
 
     Lockers.DB.Reload()
-    TriggerClientEvent('lockers:client:openAdmin', source, buildAdminPayload(source))
+    openAdminFor(source, newId)
 end)
-
-RegisterNetEvent('lockers:server:adminSaveItem', function(lockerId, data)
     local source = source
 
     if not Lockers.Framework.IsAdmin(source) or type(lockerId) ~= 'number' then
@@ -403,7 +445,8 @@ RegisterNetEvent('lockers:server:adminSaveItem', function(lockerId, data)
 
     Lockers.DB.Log(lockerId, player.identifier, player.name, 'admin_change', item.item_name, item.amount, nil)
     Lockers.DB.Reload()
-    TriggerClientEvent('lockers:client:openAdmin', source, buildAdminPayload(source))
+    notify(source, Lockers.L('admin_saved'), 'success')
+    openAdminFor(source, lockerId)
 end)
 
 RegisterNetEvent('lockers:server:adminDeleteItem', function(lockerId, itemId)
@@ -415,7 +458,7 @@ RegisterNetEvent('lockers:server:adminDeleteItem', function(lockerId, itemId)
 
     MySQL.update.await('DELETE FROM locker_items WHERE id = ? AND locker_id = ?', { itemId, lockerId })
     Lockers.DB.Reload()
-    TriggerClientEvent('lockers:client:openAdmin', source, buildAdminPayload(source))
+    openAdminFor(source, lockerId)
 end)
 
 RegisterNetEvent('lockers:server:adminGetLogs', function(lockerId)

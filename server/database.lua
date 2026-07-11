@@ -114,9 +114,10 @@ function Lockers.DB.GetClientCache()
     local clientLockers = {}
 
     for id, locker in pairs(cache.lockers) do
-        if locker.enabled then
+        if locker.enabled and locker.vehicle_key and locker.vehicle_key ~= '' then
             clientLockers[#clientLockers + 1] = {
                 id = id,
+                enabled = true,
                 name = locker.name,
                 description = locker.description,
                 vehicle_match_type = locker.vehicle_match_type,
@@ -283,6 +284,35 @@ local function seedExamples()
     Lockers.Debug('Beispiel-Schließfächer angelegt')
 end
 
+local lastRestockAt = {}
+
+function Lockers.DB.ProcessAutoRestock()
+    local now = os.time()
+
+    for id, locker in pairs(cache.lockers) do
+        if locker.enabled and locker.auto_restock then
+            local last = lastRestockAt[id] or 0
+
+            if now - last >= locker.restock_interval then
+                lastRestockAt[id] = now
+                local items = cache.items[id] or {}
+
+                for i = 1, #items do
+                    local item = items[i]
+
+                    if not item.unlimited and item.maximum_amount > 0 and item.amount < item.maximum_amount then
+                        MySQL.update.await('UPDATE locker_items SET amount = ? WHERE id = ?', {
+                            item.maximum_amount,
+                            item.id,
+                        })
+                        item.amount = item.maximum_amount
+                    end
+                end
+            end
+        end
+    end
+end
+
 local function runMigrations()
     local coordinatesColumn = MySQL.scalar.await([[
         SELECT COUNT(*) FROM information_schema.COLUMNS
@@ -356,6 +386,16 @@ MySQL.ready(function()
     end
 
     print('^2[Police_Lock]^7 Datenbank bereit')
+
+    CreateThread(function()
+        while true do
+            Wait(30000)
+
+            if cache.ready then
+                pcall(Lockers.DB.ProcessAutoRestock)
+            end
+        end
+    end)
 end)
 
 AddEventHandler('playerJoining', function()

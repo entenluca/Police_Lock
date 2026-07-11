@@ -188,7 +188,14 @@ end
 ---@param vehicle number
 ---@return string
 function Lockers.GetVehicleKeyFromEntity(vehicle)
-    return tostring(GetEntityModel(vehicle))
+    local model = GetEntityModel(vehicle)
+    local modelName = Lockers.GetModelName(model)
+
+    if modelName and modelName ~= 'unknown' and modelName ~= tostring(model) then
+        return modelName
+    end
+
+    return tostring(model)
 end
 
 ---@param plate string
@@ -266,14 +273,14 @@ function Lockers.FindLockerForVehicle(lockers, modelHash, plate)
     local modelMatch
 
     for id, locker in pairs(lockers) do
-        if locker.enabled and locker.vehicle_match_type == 'plate'
+        if locker.enabled ~= false and locker.vehicle_match_type == 'plate'
             and Lockers.VehicleMatchesLocker(locker, modelHash, plate) then
             return id
         end
     end
 
     for id, locker in pairs(lockers) do
-        if locker.enabled and locker.vehicle_match_type == 'model'
+        if locker.enabled ~= false and locker.vehicle_match_type == 'model'
             and Lockers.VehicleMatchesLocker(locker, modelHash, plate) then
             modelMatch = id
             break

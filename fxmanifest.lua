@@ -4,7 +4,7 @@ game 'gta5'
 name 'Police_Lock'
 author 'pfuschbyluis'
 description 'Fahrzeug-Schließfachsystem für ESX mit ox_inventory und ox_target'
-version '1.2.1'
+version '1.2.2'
 
 lua54 'yes'
 
