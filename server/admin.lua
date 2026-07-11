@@ -46,11 +46,19 @@ local function sanitizeItemData(data, lockerId)
         return nil
     end
 
+    local itemName = tostring(data.item_name):sub(1, 64)
+    local displayName = data.display_name and tostring(data.display_name):sub(1, 100) or nil
+
+    if not displayName then
+        local item = exports.ox_inventory:Items(itemName)
+        displayName = item and item.label and tostring(item.label):sub(1, 100) or nil
+    end
+
     return {
         id = data.id,
         locker_id = lockerId,
-        item_name = tostring(data.item_name):sub(1, 64),
-        display_name = data.display_name and tostring(data.display_name):sub(1, 100) or nil,
+        item_name = itemName,
+        display_name = displayName,
         description = data.description and tostring(data.description):sub(1, 2000) or nil,
         image = data.image and tostring(data.image):sub(1, 255) or nil,
         amount = math.max(tonumber(data.amount) or 0, 0),

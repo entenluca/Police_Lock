@@ -375,23 +375,19 @@ local function buildItemStockFields(item)
 end
 
 local function saveItemFromDialogs(lockerId, baseInput, stockInput, itemId, inventoryItems)
-    local unlimited = Lockers.ToBool(Lockers.GetDialogValue(baseInput, 'unlimited', 4, false), false)
+    local unlimited = Lockers.ToBool(Lockers.GetDialogValue(baseInput, 'unlimited', nil, false), false)
     local itemName = Lockers.GetDialogValue(baseInput, 'item_name', nil, '')
-    local displayName = Lockers.GetDialogValue(baseInput, 'display_name', 2, '')
-
-    if displayName == '' then
-        displayName = getItemLabelFromList(itemName, inventoryItems) or ''
-    end
+    local displayName = getItemLabelFromList(itemName, inventoryItems)
 
     TriggerServerEvent('lockers:server:adminSaveItem', lockerId, {
         id = itemId,
         item_name = itemName,
-        display_name = displayName ~= '' and displayName or nil,
-        amount = unlimited and 0 or Lockers.GetDialogValue(stockInput, 'amount', 1, 1),
-        maximum_amount = unlimited and 0 or Lockers.GetDialogValue(stockInput, 'maximum_amount', 2, 0),
-        maximum_take_amount = unlimited and 1 or Lockers.GetDialogValue(stockInput, 'maximum_take_amount', 3, 1),
-        minimum_grade = Lockers.GetDialogValue(baseInput, 'minimum_grade', 5, 0),
-        returnable = Lockers.ToBool(Lockers.GetDialogValue(baseInput, 'returnable', 3, true), true),
+        display_name = displayName,
+        amount = unlimited and 0 or Lockers.GetDialogValue(stockInput, 'amount', nil, 1),
+        maximum_amount = unlimited and 0 or Lockers.GetDialogValue(stockInput, 'maximum_amount', nil, 0),
+        maximum_take_amount = unlimited and 1 or Lockers.GetDialogValue(stockInput, 'maximum_take_amount', nil, 1),
+        minimum_grade = Lockers.GetDialogValue(baseInput, 'minimum_grade', nil, 0),
+        returnable = Lockers.ToBool(Lockers.GetDialogValue(baseInput, 'returnable', nil, true), true),
         unlimited = unlimited,
     })
 end
@@ -401,7 +397,6 @@ local function addItemDialog(lockerId)
 
     local baseInput = lib.inputDialog(Lockers.L('admin_add_item'), {
         buildInventorySelectField('item_name', Lockers.L('admin_item_name'), nil, inventoryItems, true),
-        { type = 'input', name = 'display_name', label = Lockers.L('admin_item_label'), description = 'Optional' },
         { type = 'checkbox', name = 'returnable', label = Lockers.L('admin_returnable'), checked = true },
         { type = 'checkbox', name = 'unlimited', label = Lockers.L('admin_unlimited'), checked = false },
         { type = 'number', name = 'minimum_grade', label = Lockers.L('admin_grade'), default = 0, min = 0 },
@@ -411,7 +406,7 @@ local function addItemDialog(lockerId)
         return
     end
 
-    local unlimited = Lockers.ToBool(Lockers.GetDialogValue(baseInput, 'unlimited', 4, false), false)
+    local unlimited = Lockers.ToBool(Lockers.GetDialogValue(baseInput, 'unlimited', nil, false), false)
     local stockInput = {}
 
     if not unlimited then
@@ -430,7 +425,6 @@ local function editItemDialog(lockerId, item)
 
     local baseInput = lib.inputDialog(Lockers.L('admin_edit_item'), {
         buildInventorySelectField('item_name', Lockers.L('admin_item_name'), item.item_name, inventoryItems, true),
-        { type = 'input', name = 'display_name', label = Lockers.L('admin_item_label'), default = item.display_name or '' },
         { type = 'checkbox', name = 'returnable', label = Lockers.L('admin_returnable'), checked = item.returnable ~= false },
         { type = 'checkbox', name = 'unlimited', label = Lockers.L('admin_unlimited'), checked = item.unlimited == true },
         { type = 'number', name = 'minimum_grade', label = Lockers.L('admin_grade'), default = item.minimum_grade or 0, min = 0 },
@@ -440,7 +434,7 @@ local function editItemDialog(lockerId, item)
         return
     end
 
-    local unlimited = Lockers.ToBool(Lockers.GetDialogValue(baseInput, 'unlimited', 4, item.unlimited == true), false)
+    local unlimited = Lockers.ToBool(Lockers.GetDialogValue(baseInput, 'unlimited', nil, item.unlimited == true), false)
     local stockInput = {}
 
     if not unlimited then
