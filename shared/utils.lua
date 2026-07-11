@@ -192,18 +192,6 @@ end
 
 ---@param vehicle number
 ---@param door number
----@return boolean
-local function isVehicleDoorValid(vehicle, door)
-    if IsDuplicityVersion() then
-        return true
-    end
-
-    local ok, valid = pcall(GetIsDoorValid, vehicle, door)
-    return ok and valid == true
-end
-
----@param vehicle number
----@param door number
 ---@return number|nil
 local function getVehicleDoorAngle(vehicle, door)
     local ok, angle = pcall(GetVehicleDoorAngleRatio, vehicle, door)
@@ -228,42 +216,61 @@ local function isVehicleDoorFullyOpen(vehicle, door)
 end
 
 ---@param vehicle number
+---@param door number
+---@param threshold number
+---@return boolean
+local function isVehicleDoorOpen(vehicle, door, threshold)
+    if isVehicleDoorFullyOpen(vehicle, door) then
+        return true
+    end
+
+    local angle = getVehicleDoorAngle(vehicle, door)
+
+    return angle ~= nil and angle > threshold
+end
+
+---@param vehicle number
+---@param doorIndices number[]
+---@param threshold number
+---@return boolean
+local function isAnyConfiguredDoorOpen(vehicle, doorIndices, threshold)
+    for i = 1, #doorIndices do
+        if isVehicleDoorOpen(vehicle, doorIndices[i], threshold) then
+            return true
+        end
+    end
+
+    return false
+end
+
+---@param vehicle number
 ---@return boolean
 function Lockers.IsTrunkOpen(vehicle)
+    if Config.Vehicle and Config.Vehicle.requireTrunkOpen == false then
+        return true
+    end
+
     if not vehicle or vehicle == 0 or GetEntityType(vehicle) ~= 2 then
         return false
     end
 
-    local doorIndices = Config.Vehicle and Config.Vehicle.trunkDoorIndices or { 5, 4, 6 }
-    local threshold = Config.Vehicle and Config.Vehicle.trunkOpenThreshold or 0.05
-    local checkedDoor = false
-
-    for i = 1, #doorIndices do
-        local door = doorIndices[i]
-
-        if not isVehicleDoorValid(vehicle, door) then
-            goto continue
-        end
-
-        local angle = getVehicleDoorAngle(vehicle, door)
-
-        if angle ~= nil then
-            checkedDoor = true
-
-            if angle > threshold then
-                return true
-            end
-        end
-
-        if isVehicleDoorFullyOpen(vehicle, door) then
-            return true
-        end
-
-        ::continue::
+    -- Türwinkel werden auf dem Server oft nicht synchronisiert – dort nicht blockieren.
+    if IsDuplicityVersion() then
+        return true
     end
 
-    if IsDuplicityVersion() and not checkedDoor then
+    local doorIndices = Config.Vehicle and Config.Vehicle.trunkDoorIndices or { 5, 4, 6, 3, 2 }
+    local threshold = Config.Vehicle and Config.Vehicle.trunkOpenThreshold or 0.01
+
+    if isAnyConfiguredDoorOpen(vehicle, doorIndices, threshold) then
         return true
+    end
+
+    -- Fallback: manche Fahrzeuge nutzen andere Tür-IDs
+    for door = 0, 7 do
+        if isVehicleDoorOpen(vehicle, door, threshold) then
+            return true
+        end
     end
 
     return false

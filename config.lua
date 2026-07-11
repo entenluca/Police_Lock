@@ -12,10 +12,12 @@ Config.Locale = 'de'
 Config.Vehicle = {
     --- Optional: Zielpunkt nur an bestimmten Bones (leer = ganzes Fahrzeug)
     targetBones = nil,
+    --- Kofferraum muss offen sein zum Öffnen (false = deaktivieren)
+    requireTrunkOpen = true,
     --- true = ox_target nur bei offenem Kofferraum; false = Ziel sichtbar, Kofferraum wird beim Benutzen geprüft
     requireTrunkOpenForTarget = false,
-    trunkDoorIndices = { 5, 4, 6 },
-    trunkOpenThreshold = 0.05,
+    trunkDoorIndices = { 5, 4, 6, 3, 2 },
+    trunkOpenThreshold = 0.01,
     defaultDistance = 2.5,
     maxTargetDistance = 5.0,
 }
