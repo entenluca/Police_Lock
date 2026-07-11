@@ -243,11 +243,13 @@ function Lockers.VehicleMatchesLocker(locker, modelHash, plate)
             return true
         end
 
-        local displayName = GetDisplayNameFromVehicleModel(modelHash)
+        if not IsDuplicityVersion() then
+            local displayName = GetDisplayNameFromVehicleModel(modelHash)
 
-        if displayName and displayName ~= 'CARNOTFOUND'
-            and string.lower(locker.vehicle_key) == string.lower(displayName) then
-            return true
+            if displayName and displayName ~= 'CARNOTFOUND'
+                and string.lower(locker.vehicle_key) == string.lower(displayName) then
+                return true
+            end
         end
 
         return false

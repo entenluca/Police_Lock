@@ -109,7 +109,7 @@ local function registerTargets()
     local count = 0
 
     for _ in pairs(lockers) do
-        count += 1
+        count = count + 1
     end
 
     Lockers.Debug(('ox_target registriert (%s Schließfächer)'):format(count))
@@ -183,7 +183,7 @@ if Config.Debug then
         local count = 0
 
         for _ in pairs(lockers) do
-            count += 1
+            count = count + 1
         end
 
         print('^3[Police_Lock]^7 Sync:', hasReceivedSync, '| Schließfächer:', count, '| ox_target:', GetResourceState('ox_target'))

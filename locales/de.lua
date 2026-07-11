@@ -70,6 +70,7 @@ Locales['de'] = {
     admin_no_permission = 'Keine Admin-Berechtigung.',
     admin_name_required = 'Bitte einen Namen eingeben.',
     admin_vehicle_key_required = 'Bitte Fahrzeugmodell oder Kennzeichen eintragen.',
+    admin_loading = 'Datenbank wird noch geladen. Bitte kurz warten und erneut versuchen.',
     access_pin_only = 'Nur PIN',
     access_key_only = 'Nur Schlüssel',
     access_pin_or_key = 'PIN oder Schlüssel',

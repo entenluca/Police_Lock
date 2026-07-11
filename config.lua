@@ -58,7 +58,9 @@ Config.Discord = {
 Config.Admin = {
     enabled = true,
     command = 'lockeradmin',
+    --- Optional: ACE-Permission für den Befehl (zusätzlich zu Config.Admin.groups)
     permission = 'lockers.admin',
+    useAcePermission = false,
     groups = { 'admin', 'superadmin' },
 }
 

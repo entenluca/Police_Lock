@@ -72,10 +72,14 @@ local function editLockerDialog(entry)
     end
 
     local input = lib.inputDialog(Lockers.L('admin_save'), {
-        { type = 'input', label = Lockers.L('admin_name'), default = locker.name, required = true },
+        { type = 'input', label = Lockers.L('admin_name'), default = locker.name or '', required = true },
         { type = 'textarea', label = Lockers.L('admin_description'), default = locker.description or '' },
-        { type = 'select', label = Lockers.L('admin_access_mode'), options = accessOptions, default = locker.access_mode },
-        { type = 'select', label = Lockers.L('admin_vehicle_match'), options = matchOptions, default = locker.vehicle_match_type or 'model' },
+        { type = 'select', label = Lockers.L('admin_access_mode'), options = #accessOptions > 0 and accessOptions or {
+            { value = 'pin_or_key', label = Lockers.L('access_pin_or_key') },
+        }, default = locker.access_mode or 'pin_or_key' },
+        { type = 'select', label = Lockers.L('admin_vehicle_match'), options = #matchOptions > 0 and matchOptions or {
+            { value = 'model', label = Lockers.L('vehicle_match_model') },
+        }, default = locker.vehicle_match_type or 'model' },
         { type = 'input', label = Lockers.L('admin_vehicle_key'), default = locker.vehicle_key or '', description = 'Spawn-Name (police) oder Modell-Hash' },
         { type = 'input', label = Lockers.L('admin_pin'), password = true, description = 'Leer lassen = unverändert' },
         { type = 'input', label = Lockers.L('admin_key_item'), default = locker.key_item or '' },
@@ -298,17 +302,41 @@ local function showAdminMainMenu()
     lib.showContext('locker_admin_main')
 end
 
+RegisterNetEvent('lockers:client:openAdminRequest', function()
+    TriggerServerEvent('lockers:server:adminOpenRequest')
+end)
+
 RegisterNetEvent('lockers:client:requestAdmin', function()
     TriggerServerEvent('lockers:server:adminOpenRequest')
 end)
 
+RegisterCommand(Config.Admin.command, function()
+    if not Config.Admin.enabled then
+        return
+    end
+
+    TriggerServerEvent('lockers:server:adminOpenRequest')
+end, false)
+
 RegisterNetEvent('lockers:client:openAdmin', function(payload)
     adminData = payload or {}
 
+    if not next(adminData) then
+        lib.notify({
+            title = Lockers.L('admin_title'),
+            description = Lockers.L('admin_loading'),
+            type = 'error',
+        })
+        return
+    end
+
     if payload and payload.selected_locker_id then
         selectedLockerId = payload.selected_locker_id
-        showLockerAdminMenu()
-        return
+
+        if getSelectedEntry() then
+            showLockerAdminMenu()
+            return
+        end
     end
 
     showAdminMainMenu()

@@ -70,6 +70,7 @@ Locales['en'] = {
     admin_no_permission = 'No admin permission.',
     admin_name_required = 'Please enter a name.',
     admin_vehicle_key_required = 'Please enter a vehicle model or plate.',
+    admin_loading = 'Database is still loading. Please wait and try again.',
     access_pin_only = 'PIN only',
     access_key_only = 'Key only',
     access_pin_or_key = 'PIN or key',

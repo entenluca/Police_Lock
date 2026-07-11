@@ -106,8 +106,19 @@ end
 RegisterNetEvent('lockers:server:adminOpenRequest', function()
     local source = source
 
-    if not Config.Admin.enabled or not Lockers.Framework.IsAdmin(source) then
+    if not Config.Admin.enabled then
+        return
+    end
+
+    Lockers.Framework.Init()
+
+    if not Lockers.Framework.IsAdmin(source) then
         notify(source, Lockers.L('admin_no_permission'), 'error')
+        return
+    end
+
+    if not Lockers.DB.IsReady() then
+        notify(source, Lockers.L('admin_loading'), 'error')
         return
     end
 
@@ -435,10 +446,9 @@ end)
 if Config.Admin.enabled then
     lib.addCommand(Config.Admin.command, {
         help = 'Schließfach Admin-Dashboard öffnen',
-        restricted = Config.Admin.permission,
     }, function(source)
         if source > 0 then
-            TriggerClientEvent('lockers:client:requestAdmin', source)
+            TriggerClientEvent('lockers:client:openAdminRequest', source)
         end
     end)
 end

@@ -378,10 +378,7 @@ RegisterNetEvent('lockers:server:closeSession', function(token)
 end)
 
 local function startup()
-    if not Lockers.Framework.Init() then
-        return
-    end
-
+    Lockers.Framework.Init()
     Lockers.Inventory.Init()
     print('^2[Police_Lock]^7 Server gestartet | ESX + ox_inventory + ox_target')
 end
