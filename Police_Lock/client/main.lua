@@ -1,140 +1,137 @@
-local reportedVehicles = {}
+local lockers = {}
+local nuiOpen = false
+local currentToken
 
-local function debugPrint(...)
-    if Config.Debug then
-        print('^3[AutoGlovebox:Client]^7', ...)
+local function setNui(state)
+    nuiOpen = state
+    SetNuiFocus(state, state)
+
+    if state then
+        SendNUIMessage({ action = 'show' })
+    else
+        SendNUIMessage({ action = 'hide' })
     end
 end
 
----@param vehicle number
----@return boolean
-local function isConfiguredVehicle(vehicle)
-    return AutoGlovebox.IsConfiguredVehicle(vehicle)
+local function closeNui()
+    if currentToken then
+        TriggerServerEvent('lockers:server:closeSession', currentToken)
+        currentToken = nil
+    end
+
+    setNui(false)
 end
 
----@param vehicle number
----@return boolean
-local function shouldIgnoreVehicle(vehicle)
-    if not DoesEntityExist(vehicle) or GetEntityType(vehicle) ~= 2 then
-        return true
+RegisterNetEvent('lockers:client:syncLockers', function(data)
+    lockers = data or {}
+    TriggerEvent('lockers:client:refreshTargets', lockers)
+end)
+
+RegisterNetEvent('lockers:client:openAuth', function(session)
+    currentToken = session.token
+    setNui(true)
+
+    SendNUIMessage({
+        action = 'openAuth',
+        data = session,
+        strings = {
+            pin_title = Lockers.L('pin_title'),
+            pin_confirm = Lockers.L('pin_confirm'),
+            pin_clear = Lockers.L('pin_clear'),
+            pin_cancel = Lockers.L('pin_cancel'),
+            close = Lockers.L('close'),
+            loading = Lockers.L('loading'),
+        },
+    })
+end)
+
+RegisterNetEvent('lockers:client:authResult', function(success, message, extra)
+    SendNUIMessage({
+        action = 'authResult',
+        success = success,
+        message = message,
+        extra = extra,
+    })
+end)
+
+RegisterNetEvent('lockers:client:openLocker', function(payload)
+    currentToken = payload.token
+    setNui(true)
+
+    SendNUIMessage({
+        action = 'openLocker',
+        data = payload,
+    })
+end)
+
+RegisterNUICallback('close', function(_, cb)
+    closeNui()
+    cb('ok')
+end)
+
+RegisterNUICallback('submitPin', function(data, cb)
+    if not currentToken then
+        cb('error')
+        return
     end
 
-    if not isConfiguredVehicle(vehicle) then
-        return true
+    TriggerServerEvent('lockers:server:submitPin', currentToken, data.pin, data.requestId)
+    cb('ok')
+end)
+
+RegisterNUICallback('useKey', function(data, cb)
+    if not currentToken then
+        cb('error')
+        return
     end
 
-    local playerVehicle = GetVehiclePedIsIn(cache.ped, false)
+    TriggerServerEvent('lockers:server:useKey', currentToken, data.requestId)
+    cb('ok')
+end)
 
-    if playerVehicle == vehicle then
-        return false
+RegisterNUICallback('takeItem', function(data, cb)
+    if not currentToken then
+        cb('error')
+        return
     end
 
-    if Config.IgnoreNPCVehicles then
-        local populationType = GetEntityPopulationType(vehicle)
+    TriggerServerEvent('lockers:server:takeItem', currentToken, data.itemId, data.amount, data.requestId)
+    cb('ok')
+end)
 
-        if populationType == 5 or populationType == 7 then
-            return true
+RegisterNUICallback('returnItem', function(data, cb)
+    if not currentToken then
+        cb('error')
+        return
+    end
+
+    TriggerServerEvent('lockers:server:returnItem', currentToken, data.itemId, data.amount, data.requestId)
+    cb('ok')
+end)
+
+CreateThread(function()
+    while true do
+        if nuiOpen and IsControlJustReleased(0, 322) then
+            closeNui()
         end
-    end
 
-    return false
+        Wait(nuiOpen and 0 or 500)
+    end
+end)
+
+local function startup()
+    Lockers.Framework.Init()
+    Lockers.Debug('Client gestartet')
 end
 
----@param vehicle number
-local function reportVehicleSpawn(vehicle)
-    if not DoesEntityExist(vehicle) then
-        return
-    end
-
-    local netId = NetworkGetNetworkIdFromEntity(vehicle)
-
-    if reportedVehicles[netId] then
-        return
-    end
-
-    reportedVehicles[netId] = true
-
-    local plate = GetVehicleNumberPlateText(vehicle)
-    local modelHash = GetEntityModel(vehicle)
-    local vehicleClass = GetVehicleClass(vehicle)
-
-    debugPrint(('Fahrzeug gemeldet: %s (Modell: %s, netId: %s)'):format(plate, modelHash, netId))
-    TriggerServerEvent('autoglovebox:server:vehicleSpawned', netId, plate, modelHash, vehicleClass)
-end
-
----@param vehicle number
-local function handleVehicleEntity(vehicle)
-    if shouldIgnoreVehicle(vehicle) then
-        return
-    end
-
-    local delay = Config.SpawnDelay or 500
-
-    SetTimeout(delay, function()
-        if not DoesEntityExist(vehicle) then
-            return
-        end
-
-        reportVehicleSpawn(vehicle)
-    end)
-end
-
-AddEventHandler('entityCreated', function(entity)
-    handleVehicleEntity(entity)
-end)
-
-lib.onCache('vehicle', function(vehicle)
-    if vehicle then
-        reportedVehicles[NetworkGetNetworkIdFromEntity(vehicle)] = nil
-        handleVehicleEntity(vehicle)
+AddEventHandler('onResourceStart', function(resourceName)
+    if resourceName == GetCurrentResourceName() then
+        SetTimeout(500, startup)
     end
 end)
 
-exports('OnVehicleSpawned', function(vehicle)
-    if not vehicle or vehicle == 0 then
-        return
-    end
-
-    reportedVehicles[NetworkGetNetworkIdFromEntity(vehicle)] = nil
-    handleVehicleEntity(vehicle)
+exports('OpenLocker', function(lockerId)
+    TriggerServerEvent('lockers:server:requestOpen', lockerId)
 end)
 
-RegisterNetEvent('autoglovebox:client:manualEquip', function(force)
-    local vehicle = cache.vehicle or lib.getClosestVehicle(GetEntityCoords(cache.ped), 8.0, false)
-
-    if not vehicle or vehicle == 0 then
-        lib.notify({
-            title = 'AutoGlovebox',
-            description = 'Kein Fahrzeug in der Nähe gefunden.',
-            type = 'error',
-        })
-        return
-    end
-
-    local netId = NetworkGetNetworkIdFromEntity(vehicle)
-    reportedVehicles[netId] = nil
-
-    TriggerServerEvent(
-        'autoglovebox:server:forceEquip',
-        netId,
-        GetVehicleNumberPlateText(vehicle),
-        GetEntityModel(vehicle),
-        GetVehicleClass(vehicle)
-    )
-
-    if not force then
-        lib.notify({
-            title = 'AutoGlovebox',
-            description = 'Fahrzeug-Ausrüstung wurde angefordert.',
-            type = 'inform',
-        })
-    end
-end)
-
-AddEventHandler('onResourceStop', function(resourceName)
-    if resourceName ~= GetCurrentResourceName() then
-        return
-    end
-
-    reportedVehicles = {}
-end)
+exports('CloseLocker', closeNui)

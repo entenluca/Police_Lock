@@ -1,10 +1,10 @@
 fx_version 'cerulean'
 game 'gta5'
 
-name 'AutoGlovebox'
+name 'fivem_lockers'
 author 'pfuschbyluis'
-description 'Legt beim Spawnen von Fahrzeugen automatisch Items ins Handschuhfach'
-version '1.6.3'
+description 'Performantes und sicheres Schließfachsystem für ESX und QBCore'
+version '1.0.0'
 
 lua54 'yes'
 
@@ -13,30 +13,29 @@ ui_page 'web/index.html'
 files {
     'web/index.html',
     'web/style.css',
-    'web/script.js',
+    'web/app.js',
+    'locales/*.lua',
 }
 
 shared_scripts {
     '@ox_lib/init.lua',
     'config.lua',
-    'shared/init.lua',
-    'shared/autodetect.lua',
-    'shared/plate.lua',
     'shared/utils.lua',
+    'shared/framework.lua',
+    'locales/*.lua',
 }
 
 client_scripts {
-    'client/cache.lua',
+    'client/target.lua',
     'client/main.lua',
     'client/admin.lua',
 }
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
-    'server/loadouts.lua',
     'server/database.lua',
-    'server/bridge/adapters/*.lua',
-    'server/bridge/init.lua',
+    'server/security.lua',
+    'server/inventory.lua',
     'server/admin.lua',
     'server/main.lua',
 }
@@ -46,7 +45,7 @@ dependencies {
     'oxmysql',
 }
 
--- Optional (mindestens eines erforderlich):
--- ox_inventory  → ESX, QBCore oder Standalone
--- qb-inventory  → QBCore
--- es_extended   → ESX ohne ox_inventory (owned_vehicles.glovebox)
+-- Optional (mindestens eines empfohlen):
+-- ox_target / qb-target
+-- ox_inventory / qb-inventory
+-- es_extended / qb-core / qbx_core

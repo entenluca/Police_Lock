@@ -1,211 +1,420 @@
-local function hasAdminPermission(source)
-    if source == 0 then
-        return true
-    end
-
-    return IsPlayerAceAllowed(source, Config.AdminPanel.permission)
-end
-
-local function notify(source, message, type)
+local function notify(source, message, ntype)
     TriggerClientEvent('ox_lib:notify', source, {
-        title = 'AutoGlovebox',
+        title = Lockers.L('admin_title'),
         description = message,
-        type = type or 'inform',
+        type = ntype or 'inform',
     })
 end
 
-lib.callback.register('autoglovebox:admin:canOpen', function(source)
-    return hasAdminPermission(source)
-end)
+local function sanitizeLockerData(data)
+    if type(data) ~= 'table' then
+        return nil
+    end
 
-lib.callback.register('autoglovebox:admin:getLoadouts', function(source)
-    if not hasAdminPermission(source) then
+    local accessMode = data.access_mode or 'pin_or_key'
+
+    if not Lockers.IsValidAccessMode(accessMode) then
+        accessMode = 'pin_or_key'
+    end
+
+    return {
+        id = data.id,
+        name = tostring(data.name or 'Schließfach'):sub(1, 100),
+        description = tostring(data.description or ''):sub(1, 2000),
+        coordinates = Lockers.CoordsToTable(data.coordinates or {}),
+        target_distance = math.min(math.max(tonumber(data.target_distance) or 2.0, 0.5), 10.0),
+        access_mode = accessMode,
+        pin = data.pin,
+        key_item = data.key_item ~= '' and data.key_item or nil,
+        key_metadata = Lockers.DecodeJSON(data.key_metadata),
+        key_consume = data.key_consume == true,
+        key_job_restrict = Lockers.DecodeJSON(data.key_job_restrict),
+        allowed_jobs = Lockers.DecodeJSON(data.allowed_jobs),
+        minimum_grade = math.max(tonumber(data.minimum_grade) or 0, 0),
+        allowed_identifiers = type(data.allowed_identifiers) == 'table' and data.allowed_identifiers or {},
+        slots = math.min(math.max(tonumber(data.slots) or 50, 1), 500),
+        max_weight = math.min(math.max(tonumber(data.max_weight) or 100000, 1000), 10000000),
+        auto_restock = data.auto_restock == true,
+        restock_interval = math.max(tonumber(data.restock_interval) or 3600, 60),
+        enabled = data.enabled ~= false,
+    }
+end
+
+local function sanitizeItemData(data, lockerId)
+    if type(data) ~= 'table' or not data.item_name or data.item_name == '' then
         return nil
     end
 
     return {
-        loadouts = AutoGlovebox.Loadouts.GetAll(),
-        defaultAddMode = Config.AddMode,
+        id = data.id,
+        locker_id = lockerId,
+        item_name = tostring(data.item_name):sub(1, 64),
+        display_name = data.display_name and tostring(data.display_name):sub(1, 100) or nil,
+        description = data.description and tostring(data.description):sub(1, 2000) or nil,
+        image = data.image and tostring(data.image):sub(1, 255) or nil,
+        amount = math.max(tonumber(data.amount) or 0, 0),
+        maximum_amount = math.max(tonumber(data.maximum_amount) or 0, 0),
+        maximum_take_amount = math.min(math.max(tonumber(data.maximum_take_amount) or 1, 1), 9999),
+        minimum_grade = math.max(tonumber(data.minimum_grade) or 0, 0),
+        allowed_jobs = Lockers.DecodeJSON(data.allowed_jobs),
+        metadata = Lockers.DecodeJSON(data.metadata),
+        returnable = data.returnable ~= false,
+        unlimited = data.unlimited == true,
+        cooldown = math.max(tonumber(data.cooldown) or 0, 0),
+        locker_cooldown = math.max(tonumber(data.locker_cooldown) or 0, 0),
+        price = math.max(tonumber(data.price) or 0, 0),
+        deposit = math.max(tonumber(data.deposit) or 0, 0),
+        personal_bind = data.personal_bind == true,
+        sort_order = tonumber(data.sort_order) or 0,
     }
-end)
+end
 
-lib.callback.register('autoglovebox:admin:saveLoadout', function(source, data)
-    if not hasAdminPermission(source) then
-        return { success = false, error = 'Keine Berechtigung' }
+local function buildAdminPayload(source)
+    local lockers = {}
+    local all = Lockers.DB.GetLockers()
+
+    for id, locker in pairs(all) do
+        local items = Lockers.DB.GetItems(id)
+        local safeLocker = {}
+
+        for key, value in pairs(locker) do
+            if key ~= 'pin_hash' then
+                safeLocker[key] = value
+            end
+        end
+
+        safeLocker.has_pin = locker.pin_hash ~= nil and locker.pin_hash ~= ''
+        lockers[#lockers + 1] = {
+            locker = safeLocker,
+            items = items,
+        }
     end
 
-    local loadoutId, errorMessage = AutoGlovebox.Loadouts.SaveLoadout(data)
-
-    if not loadoutId then
-        return { success = false, error = errorMessage }
-    end
-
-    return { success = true, loadoutId = loadoutId }
-end)
-
-lib.callback.register('autoglovebox:admin:deleteLoadout', function(source, loadoutId)
-    if not hasAdminPermission(source) then
-        return { success = false, error = 'Keine Berechtigung' }
-    end
-
-    local success, errorMessage = AutoGlovebox.Loadouts.DeleteLoadout(loadoutId)
-    return { success = success, error = errorMessage }
-end)
-
-lib.callback.register('autoglovebox:admin:addItem', function(source, data)
-    if not hasAdminPermission(source) then
-        return { success = false, error = 'Keine Berechtigung' }
-    end
-
-    local itemId, errorMessage = AutoGlovebox.Loadouts.AddItem(
-        data.loadout_id,
-        data.item,
-        data.amount,
-        data.metadata
-    )
-
-    if not itemId then
-        return { success = false, error = errorMessage }
-    end
-
-    return { success = true, itemId = itemId }
-end)
-
-lib.callback.register('autoglovebox:admin:removeItem', function(source, itemId)
-    if not hasAdminPermission(source) then
-        return { success = false, error = 'Keine Berechtigung' }
-    end
-
-    local success, errorMessage = AutoGlovebox.Loadouts.RemoveItem(itemId)
-    return { success = success, error = errorMessage }
-end)
-
-lib.callback.register('autoglovebox:admin:refresh', function(source)
-    if not hasAdminPermission(source) then
-        return { success = false }
-    end
-
-    AutoGlovebox.Loadouts.Refresh()
-    TriggerClientEvent('autoglovebox:client:syncCache', -1, AutoGlovebox.Loadouts.GetClientCache())
+    table.sort(lockers, function(a, b)
+        return a.locker.id < b.locker.id
+    end)
 
     return {
-        success = true,
-        loadouts = AutoGlovebox.Loadouts.GetAll(),
-        defaultAddMode = Config.AddMode,
+        lockers = lockers,
+        access_modes = {
+            'pin_only', 'key_only', 'pin_or_key', 'pin_and_key', 'job_only', 'identifier_only',
+        },
+        locale = Config.Locale,
     }
+end
+
+RegisterNetEvent('lockers:server:adminOpenRequest', function()
+    local source = source
+
+    if not Config.Admin.enabled or not Lockers.Framework.IsAdmin(source) then
+        notify(source, Lockers.L('admin_no_permission'), 'error')
+        return
+    end
+
+    TriggerClientEvent('lockers:client:openAdmin', source, buildAdminPayload(source))
 end)
 
-lib.callback.register('autoglovebox:admin:resetEquipped', function(source, data)
-    if not hasAdminPermission(source) then
-        return { success = false, error = 'Keine Berechtigung' }
+RegisterNetEvent('lockers:server:adminSaveLocker', function(data)
+    local source = source
+
+    if not Lockers.Framework.IsAdmin(source) then
+        return
     end
 
-    local plate = type(data) == 'table' and data.plate or data
-    local storageType = type(data) == 'table' and data.storage_type or nil
+    local locker = sanitizeLockerData(data)
 
-    if not plate or plate == '' then
-        return { success = false, error = 'Kennzeichen fehlt' }
+    if not locker then
+        return
     end
 
-    exports[GetCurrentResourceName()]:ResetEquipped(plate, storageType)
-    return { success = true }
+    local player = Lockers.Framework.GetPlayer(source)
+    local pinHash
+
+    if locker.pin and locker.pin ~= '' then
+        pinHash = Lockers.DB.HashPin(locker.pin)
+    elseif data.keep_pin then
+        local existing = locker.id and Lockers.DB.GetLocker(locker.id)
+        pinHash = existing and existing.pin_hash or nil
+    end
+
+    if locker.id then
+        MySQL.update.await([[
+            UPDATE lockers SET name = ?, description = ?, coordinates = ?, target_distance = ?, access_mode = ?,
+            pin_hash = ?, key_item = ?, key_metadata = ?, key_consume = ?, key_job_restrict = ?, allowed_jobs = ?,
+            minimum_grade = ?, allowed_identifiers = ?, slots = ?, max_weight = ?, auto_restock = ?,
+            restock_interval = ?, enabled = ? WHERE id = ?
+        ]], {
+            locker.name,
+            locker.description,
+            Lockers.EncodeJSON(locker.coordinates),
+            locker.target_distance,
+            locker.access_mode,
+            pinHash,
+            locker.key_item,
+            Lockers.EncodeJSON(locker.key_metadata),
+            locker.key_consume and 1 or 0,
+            Lockers.EncodeJSON(locker.key_job_restrict),
+            Lockers.EncodeJSON(locker.allowed_jobs),
+            locker.minimum_grade,
+            Lockers.EncodeJSON(locker.allowed_identifiers),
+            locker.slots,
+            locker.max_weight,
+            locker.auto_restock and 1 or 0,
+            locker.restock_interval,
+            locker.enabled and 1 or 0,
+            locker.id,
+        })
+
+        Lockers.DB.Log(locker.id, player.identifier, player.name, 'admin_change', 'locker_update', nil, nil)
+    else
+        locker.id = MySQL.insert.await([[
+            INSERT INTO lockers (name, description, coordinates, target_distance, access_mode, pin_hash, key_item, key_metadata, key_consume, key_job_restrict, allowed_jobs, minimum_grade, allowed_identifiers, slots, max_weight, auto_restock, restock_interval, enabled, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ]], {
+            locker.name,
+            locker.description,
+            Lockers.EncodeJSON(locker.coordinates),
+            locker.target_distance,
+            locker.access_mode,
+            pinHash,
+            locker.key_item,
+            Lockers.EncodeJSON(locker.key_metadata),
+            locker.key_consume and 1 or 0,
+            Lockers.EncodeJSON(locker.key_job_restrict),
+            Lockers.EncodeJSON(locker.allowed_jobs),
+            locker.minimum_grade,
+            Lockers.EncodeJSON(locker.allowed_identifiers),
+            locker.slots,
+            locker.max_weight,
+            locker.auto_restock and 1 or 0,
+            locker.restock_interval,
+            locker.enabled and 1 or 0,
+            player.identifier,
+        })
+    end
+
+    Lockers.DB.Reload()
+    notify(source, Lockers.L('admin_saved'), 'success')
+    TriggerClientEvent('lockers:client:openAdmin', source, buildAdminPayload(source))
 end)
 
-lib.callback.register('autoglovebox:admin:fillVehicle', function(source, data)
-    if not hasAdminPermission(source) then
-        return { success = false, error = 'Keine Berechtigung', type = 'error' }
+RegisterNetEvent('lockers:server:adminDeleteLocker', function(lockerId)
+    local source = source
+
+    if not Lockers.Framework.IsAdmin(source) or type(lockerId) ~= 'number' then
+        return
     end
 
-    if not data or type(data.netId) ~= 'number' or type(data.plate) ~= 'string' or type(data.modelHash) ~= 'number' then
-        return {
-            success = false,
-            title = 'Fehler',
-            error = 'Fahrzeugdaten unvollständig',
-            type = 'error',
-        }
-    end
-
-    if not data.loadoutId then
-        return {
-            success = false,
-            title = 'Fehler',
-            error = 'Kein Loadout ausgewählt',
-            type = 'error',
-        }
-    end
-
-    local entity = NetworkGetEntityFromNetworkId(data.netId)
-
-    if not entity or entity == 0 or GetEntityType(entity) ~= 2 then
-        return {
-            success = false,
-            title = 'Fehler',
-            error = 'Fahrzeug nicht gefunden',
-            type = 'error',
-        }
-    end
-
-    local playerPed = GetPlayerPed(source)
-    local maxDistance = Config.AdminPanel.fillDistance or Config.MaxReportDistance or 50.0
-    local distance = #(GetEntityCoords(playerPed) - GetEntityCoords(entity))
-
-    if distance > maxDistance then
-        return {
-            success = false,
-            title = 'Zu weit entfernt',
-            error = ('Fahrzeug ist %.0fm entfernt (max. %.0fm).'):format(distance, maxDistance),
-            type = 'error',
-        }
-    end
-
-    local success, reason = AutoGlovebox.ForceEquipVehicle(
-        source,
-        data.netId,
-        data.plate,
-        data.modelHash,
-        data.vehicleClass,
-        data.loadoutId
-    )
-
-    if success then
-        local _, _, storageType = AutoGlovebox.Loadouts.GetLoadoutById(data.loadoutId)
-        local storageLabel = AutoGlovebox.GetStorageLabel(storageType)
-
-        return {
-            success = true,
-            title = 'Erfolg',
-            message = ('%s von %s wurde befüllt.'):format(storageLabel, AutoGlovebox.NormalizePlate(data.plate)),
-            type = 'success',
-        }
-    end
-
-    return {
-        success = false,
-        title = 'Fehler',
-        error = reason or 'Befüllung fehlgeschlagen',
-        type = 'error',
-    }
+    local player = Lockers.Framework.GetPlayer(source)
+    MySQL.update.await('DELETE FROM lockers WHERE id = ?', { lockerId })
+    Lockers.DB.Log(lockerId, player.identifier, player.name, 'admin_change', 'locker_delete', nil, nil)
+    Lockers.DB.Reload()
+    notify(source, Lockers.L('admin_deleted'), 'success')
+    TriggerClientEvent('lockers:client:openAdmin', source, buildAdminPayload(source))
 end)
 
-lib.callback.register('autoglovebox:admin:copyLoadout', function(source, data)
-    if not hasAdminPermission(source) then
-        return { success = false, error = 'Keine Berechtigung' }
+RegisterNetEvent('lockers:server:adminDuplicateLocker', function(lockerId)
+    local source = source
+
+    if not Lockers.Framework.IsAdmin(source) or type(lockerId) ~= 'number' then
+        return
     end
 
-    local loadoutId, errorMessage = AutoGlovebox.Loadouts.CopyLoadout(data.loadoutId, data.newSpawnName)
+    local locker = Lockers.DB.GetLocker(lockerId)
 
-    if not loadoutId then
-        return { success = false, error = errorMessage }
+    if not locker then
+        return
     end
 
-    return { success = true, loadoutId = loadoutId }
+    local player = Lockers.Framework.GetPlayer(source)
+    local newId = MySQL.insert.await([[
+        INSERT INTO lockers (name, description, coordinates, target_distance, access_mode, pin_hash, key_item, key_metadata, key_consume, key_job_restrict, allowed_jobs, minimum_grade, allowed_identifiers, slots, max_weight, auto_restock, restock_interval, enabled, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ]], {
+        locker.name .. ' (Kopie)',
+        locker.description,
+        Lockers.EncodeJSON(locker.coordinates),
+        locker.target_distance,
+        locker.access_mode,
+        locker.pin_hash,
+        locker.key_item,
+        Lockers.EncodeJSON(locker.key_metadata),
+        locker.key_consume and 1 or 0,
+        Lockers.EncodeJSON(locker.key_job_restrict),
+        Lockers.EncodeJSON(locker.allowed_jobs),
+        locker.minimum_grade,
+        Lockers.EncodeJSON(locker.allowed_identifiers),
+        locker.slots,
+        locker.max_weight,
+        locker.auto_restock and 1 or 0,
+        locker.restock_interval,
+        locker.enabled and 1 or 0,
+        player.identifier,
+    })
+
+    local items = Lockers.DB.GetItems(lockerId)
+
+    for i = 1, #items do
+        local item = items[i]
+
+        MySQL.insert.await([[
+            INSERT INTO locker_items (locker_id, item_name, display_name, description, image, amount, maximum_amount, maximum_take_amount, minimum_grade, allowed_jobs, metadata, returnable, unlimited, cooldown, locker_cooldown, price, deposit, personal_bind, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ]], {
+            newId,
+            item.item_name,
+            item.display_name,
+            item.description,
+            item.image,
+            item.amount,
+            item.maximum_amount,
+            item.maximum_take_amount,
+            item.minimum_grade,
+            Lockers.EncodeJSON(item.allowed_jobs),
+            Lockers.EncodeJSON(item.metadata),
+            item.returnable and 1 or 0,
+            item.unlimited and 1 or 0,
+            item.cooldown,
+            item.locker_cooldown,
+            item.price,
+            item.deposit,
+            item.personal_bind and 1 or 0,
+            item.sort_order,
+        })
+    end
+
+    Lockers.DB.Reload()
+    TriggerClientEvent('lockers:client:openAdmin', source, buildAdminPayload(source))
 end)
 
-if Config.AdminPanel.enabled then
-    lib.addCommand(Config.AdminPanel.command, {
-        help = 'Öffnet das AutoGlovebox Admin-Panel',
-        restricted = Config.AdminPanel.permission,
+RegisterNetEvent('lockers:server:adminSaveItem', function(lockerId, data)
+    local source = source
+
+    if not Lockers.Framework.IsAdmin(source) or type(lockerId) ~= 'number' then
+        return
+    end
+
+    local item = sanitizeItemData(data, lockerId)
+
+    if not item then
+        return
+    end
+
+    local player = Lockers.Framework.GetPlayer(source)
+
+    if item.id then
+        MySQL.update.await([[
+            UPDATE locker_items SET item_name = ?, display_name = ?, description = ?, image = ?, amount = ?,
+            maximum_amount = ?, maximum_take_amount = ?, minimum_grade = ?, allowed_jobs = ?, metadata = ?,
+            returnable = ?, unlimited = ?, cooldown = ?, locker_cooldown = ?, price = ?, deposit = ?,
+            personal_bind = ?, sort_order = ? WHERE id = ? AND locker_id = ?
+        ]], {
+            item.item_name,
+            item.display_name,
+            item.description,
+            item.image,
+            item.amount,
+            item.maximum_amount,
+            item.maximum_take_amount,
+            item.minimum_grade,
+            Lockers.EncodeJSON(item.allowed_jobs),
+            Lockers.EncodeJSON(item.metadata),
+            item.returnable and 1 or 0,
+            item.unlimited and 1 or 0,
+            item.cooldown,
+            item.locker_cooldown,
+            item.price,
+            item.deposit,
+            item.personal_bind and 1 or 0,
+            item.sort_order,
+            item.id,
+            lockerId,
+        })
+    else
+        MySQL.insert.await([[
+            INSERT INTO locker_items (locker_id, item_name, display_name, description, image, amount, maximum_amount, maximum_take_amount, minimum_grade, allowed_jobs, metadata, returnable, unlimited, cooldown, locker_cooldown, price, deposit, personal_bind, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ]], {
+            lockerId,
+            item.item_name,
+            item.display_name,
+            item.description,
+            item.image,
+            item.amount,
+            item.maximum_amount,
+            item.maximum_take_amount,
+            item.minimum_grade,
+            Lockers.EncodeJSON(item.allowed_jobs),
+            Lockers.EncodeJSON(item.metadata),
+            item.returnable and 1 or 0,
+            item.unlimited and 1 or 0,
+            item.cooldown,
+            item.locker_cooldown,
+            item.price,
+            item.deposit,
+            item.personal_bind and 1 or 0,
+            item.sort_order,
+        })
+    end
+
+    Lockers.DB.Log(lockerId, player.identifier, player.name, 'admin_change', item.item_name, item.amount, nil)
+    Lockers.DB.Reload()
+    TriggerClientEvent('lockers:client:openAdmin', source, buildAdminPayload(source))
+end)
+
+RegisterNetEvent('lockers:server:adminDeleteItem', function(lockerId, itemId)
+    local source = source
+
+    if not Lockers.Framework.IsAdmin(source) then
+        return
+    end
+
+    MySQL.update.await('DELETE FROM locker_items WHERE id = ? AND locker_id = ?', { itemId, lockerId })
+    Lockers.DB.Reload()
+    TriggerClientEvent('lockers:client:openAdmin', source, buildAdminPayload(source))
+end)
+
+RegisterNetEvent('lockers:server:adminGetLogs', function(lockerId)
+    local source = source
+
+    if not Lockers.Framework.IsAdmin(source) then
+        return
+    end
+
+    local logs = MySQL.query.await(
+        'SELECT * FROM locker_logs WHERE locker_id = ? ORDER BY id DESC LIMIT 100',
+        { lockerId }
+    ) or {}
+
+    TriggerClientEvent('lockers:client:adminLogs', source, logs)
+end)
+
+RegisterNetEvent('lockers:server:adminGetPosition', function()
+    local source = source
+
+    if not Lockers.Framework.IsAdmin(source) then
+        return
+    end
+
+    local ped = GetPlayerPed(source)
+    local coords = GetEntityCoords(ped)
+    local heading = GetEntityHeading(ped)
+
+    TriggerClientEvent('lockers:client:adminPosition', source, {
+        x = coords.x,
+        y = coords.y,
+        z = coords.z,
+        h = heading,
+    })
+end)
+
+if Config.Admin.enabled then
+    lib.addCommand(Config.Admin.command, {
+        help = 'Schließfach Admin-Dashboard öffnen',
+        restricted = Config.Admin.permission,
     }, function(source)
-        TriggerClientEvent('autoglovebox:client:openAdmin', source)
+        if source > 0 then
+            TriggerClientEvent('lockers:client:requestAdmin', source)
+        end
     end)
 end

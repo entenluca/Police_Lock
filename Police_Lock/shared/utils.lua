@@ -1,59 +1,143 @@
----@param entry table
----@return 'once'|'always', table
-function AutoGlovebox.ParseVehicleEntry(entry)
-    if not entry then
-        return Config.AddMode, {}
-    end
+Lockers = Lockers or {}
 
-    if entry[1] and type(entry[1]) == 'table' and entry[1].item then
-        return Config.AddMode, entry
-    end
-
-    if entry.items then
-        return entry.addMode or Config.AddMode, entry.items
-    end
-
-    return Config.AddMode, {}
-end
-
----@param plate string
+---@param key string
+---@param ... any
 ---@return string
-function AutoGlovebox.NormalizePlate(plate)
-    if not plate then
-        return ''
+function Lockers.L(key, ...)
+    local locale = Locales and Locales[Config.Locale] or Locales and Locales['en'] or {}
+    local str = locale[key] or key
+
+    if select('#', ...) > 0 then
+        return str:format(...)
     end
 
-    return plate:gsub('^%s+', ''):gsub('%s+$', '')
+    return str
 end
 
----@param addMode string
+---@param data any
+---@return string|nil
+function Lockers.EncodeJSON(data)
+    if data == nil then
+        return nil
+    end
+
+    local ok, encoded = pcall(json.encode, data)
+
+    if ok and encoded then
+        return encoded
+    end
+
+    return nil
+end
+
+---@param raw string|nil
+---@return table
+function Lockers.DecodeJSON(raw)
+    if not raw or raw == '' or raw == 'null' then
+        return {}
+    end
+
+    local ok, decoded = pcall(json.decode, raw)
+
+    if ok and type(decoded) == 'table' then
+        return decoded
+    end
+
+    return {}
+end
+
+---@param coords table|string
+---@return vector3|nil
+function Lockers.ParseCoords(coords)
+    if type(coords) == 'vector3' then
+        return coords
+    end
+
+    if type(coords) == 'table' then
+        return vector3(coords.x or coords[1] or 0.0, coords.y or coords[2] or 0.0, coords.z or coords[3] or 0.0)
+    end
+
+    if type(coords) == 'string' then
+        local decoded = Lockers.DecodeJSON(coords)
+
+        if decoded.x then
+            return vector3(decoded.x, decoded.y, decoded.z)
+        end
+    end
+
+    return nil
+end
+
+---@param value vector3|table
+---@return table
+function Lockers.CoordsToTable(value)
+    if type(value) == 'vector3' then
+        return { x = value.x, y = value.y, z = value.z }
+    end
+
+    return {
+        x = value.x or 0.0,
+        y = value.y or 0.0,
+        z = value.z or 0.0,
+        h = value.h or value.w or 0.0,
+    }
+end
+
+---@param a vector3
+---@param b vector3
+---@return number
+function Lockers.Distance(a, b)
+    return #(a - b)
+end
+
+---@param jobs table|nil
+---@param jobName string
+---@param grade number
 ---@return boolean
-function AutoGlovebox.IsValidAddMode(addMode)
-    return addMode == 'once' or addMode == 'always'
+function Lockers.HasJobAccess(jobs, jobName, grade)
+    if not jobs or not next(jobs) then
+        return true
+    end
+
+    local required = jobs[jobName]
+
+    if required == nil then
+        return false
+    end
+
+    return grade >= tonumber(required) or 0
 end
 
----@param storageType string|nil
+---@param identifiers table|nil
+---@param playerIdentifier string
 ---@return boolean
-function AutoGlovebox.IsValidStorageType(storageType)
-    return storageType == 'glovebox' or storageType == 'trunk'
-end
-
----@param storageType string|nil
----@return 'glovebox'|'trunk'
-function AutoGlovebox.NormalizeStorageType(storageType)
-    if storageType == 'trunk' then
-        return 'trunk'
+function Lockers.HasIdentifierAccess(identifiers, playerIdentifier)
+    if not identifiers or #identifiers == 0 then
+        return true
     end
 
-    return 'glovebox'
-end
-
----@param storageType 'glovebox'|'trunk'
----@return string
-function AutoGlovebox.GetStorageLabel(storageType)
-    if storageType == 'trunk' then
-        return 'Kofferraum'
+    for i = 1, #identifiers do
+        if identifiers[i] == playerIdentifier then
+            return true
+        end
     end
 
-    return 'Handschuhfach'
+    return false
+end
+
+---@param mode string
+---@return boolean
+function Lockers.IsValidAccessMode(mode)
+    return mode == 'pin_only'
+        or mode == 'key_only'
+        or mode == 'pin_or_key'
+        or mode == 'pin_and_key'
+        or mode == 'job_only'
+        or mode == 'identifier_only'
+end
+
+function Lockers.Debug(...)
+    if Config.Debug then
+        print('^3[fivem_lockers]^7', ...)
+    end
 end
