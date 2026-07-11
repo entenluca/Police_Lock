@@ -1,6 +1,6 @@
-# Police_Lock – FiveM Schließfachsystem
+# Police_Lock – Fahrzeug-Schließfachsystem
 
-Performantes und sicheres Schließfachsystem für **ESX** und **QBCore** mit PIN-Zugang, Schlüssel-Items, Admin-Dashboard und moderner NUI.
+Performantes und sicheres **Fahrzeug-Schließfachsystem** für **ESX** und **QBCore**. Schließfächer werden Fahrzeugmodellen oder Kennzeichen zugeordnet – nicht festen Standorten.
 
 ![Version](https://img.shields.io/badge/version-1.0.0-orange)
 ![FiveM](https://img.shields.io/badge/FiveM-ready-green)
@@ -33,7 +33,7 @@ Performantes und sicheres Schließfachsystem für **ESX** und **QBCore** mit PIN
 | **Framework** | ESX, QBCore/Qbox, Standalone – Auto-Erkennung |
 | **Target** | ox_target (bevorzugt) oder qb-target |
 | **Inventar** | ox_inventory (bevorzugt) oder qb-inventory |
-| **Zugang** | PIN, Schlüssel, PIN+Schlüssel, Job/Rang, Identifier |
+| **Zuordnung** | Fahrzeugmodell oder Kennzeichen |
 | **PIN** | Serverseitige Prüfung, SHA-512-Hash, Sperrzeit bei Fehlversuchen |
 | **NUI** | Dunkles Design, orange Akzente, PIN-Pad, Item-Karten |
 | **Admin** | Ingame-Dashboard zur vollständigen Verwaltung |
@@ -139,16 +139,19 @@ Aktiviert Konsolen-Ausgaben und Target-Debug-Polygone.
 
 ## Nutzung im Spiel
 
-1. Spieler nähert sich einem Schließfach
+1. Spieler nähert sich einem **Fahrzeug** mit konfiguriertem Schließfach (Kofferraum/Heck)
 2. Über **Alt-Auge / Target** die Option **„Schließfach öffnen"** wählen
-3. Je nach Konfiguration:
-   - **PIN** über Nummernblock eingeben
-   - **Schlüssel-Item** im Inventar verwenden
-   - Oder beides (je nach Zugangsmodus)
-4. Nach erfolgreicher Authentifizierung öffnet sich die Item-Oberfläche
-5. Items **entnehmen** oder **zurücklegen** (sofern erlaubt)
+3. PIN eingeben und/oder Schlüssel-Item verwenden
+4. Items entnehmen oder zurücklegen
 
-### Zugangsmodi
+### Fahrzeug-Zuordnung
+
+| Typ | Beispiel | Beschreibung |
+|-----|----------|--------------|
+| `model` | `police` | Gilt für alle Fahrzeuge dieses Modells |
+| `plate` | `LSPD001` | Gilt nur für dieses Kennzeichen |
+
+### Zugangsmodi (im Admin-Panel mit Label)
 
 | Modus | Beschreibung |
 |-------|--------------|
@@ -170,13 +173,10 @@ Aktiviert Konsolen-Ausgaben und Target-Debug-Polygone.
 ### Funktionen im Dashboard
 
 - Schließfach **erstellen**, **bearbeiten**, **löschen**, **duplizieren**
-- **Position** über aktuelle Spielerposition setzen
-- **PIN** setzen oder ändern (wird serverseitig gehasht)
-- **Schlüssel-Item** und Zugangsmodus konfigurieren
-- **Jobs**, Ränge und freigegebene Spieler verwalten
-- **Items** mit Bestand, Maximalmenge, Rang-Beschränkung hinzufügen
-- **Live-Bestand** und **Transaktionsverlauf** einsehen
-- Zum Schließfach **teleportieren**
+- **Fahrzeugmodell oder Kennzeichen** zuweisen („Vom aktuellen Fahrzeug übernehmen")
+- **Zugangsmodus** mit lesbaren Labels wählen (z. B. „PIN oder Schlüssel")
+- PIN setzen, Schlüssel-Item konfigurieren, Items verwalten
+- Live-Bestand und Transaktionsverlauf
 
 ---
 
@@ -237,24 +237,20 @@ key_consume = true
 
 Beim **ersten Start** werden automatisch zwei Beispiel-Schließfächer angelegt (`Config.ExampleLockers`):
 
-### Polizei-Waffenschrank
+### Polizei-Dienstfahrzeug (`police`)
 
 | Einstellung | Wert |
 |-------------|------|
-| Zugang | `pin_or_key` |
+| Zuordnung | Fahrzeugmodell `police` |
+| Zugang | PIN oder Schlüssel |
 | PIN | `1234` |
-| Schlüssel | `police_locker_key` |
-| Job | `police` ab Rang 0 |
-| Items | Dienstpistole (Rang 2+), 9mm Munition, Schutzweste |
+| Items | Dienstpistole, Munition, Schutzweste |
 
-### Beweismittel-Tresor
+### Einsatzfahrzeug SEK (`police2`)
 
-| Einstellung | Wert |
-|-------------|------|
-| Zugang | `key_only` |
+| Zuordnung | Fahrzeugmodell `police2` |
+| Zugang | Nur Schlüssel |
 | Schlüssel | `evidence_keycard` |
-| Job | `police` ab Rang 3 |
-| Items | Beweismitteltüten (unbegrenzt) |
 
 > **Hinweis:** Die PIN `1234` wird nur beim ersten Anlegen verwendet und danach als Hash in der Datenbank gespeichert. Sie wird niemals an Clients gesendet.
 

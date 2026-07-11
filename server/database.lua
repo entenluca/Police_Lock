@@ -12,7 +12,8 @@ local function rowToLocker(row)
         id = row.id,
         name = row.name,
         description = row.description,
-        coordinates = Lockers.DecodeJSON(row.coordinates),
+        vehicle_match_type = row.vehicle_match_type or 'model',
+        vehicle_key = row.vehicle_key or '',
         target_distance = row.target_distance,
         access_mode = row.access_mode,
         pin_hash = row.pin_hash,
@@ -118,7 +119,8 @@ function Lockers.DB.GetClientCache()
                 id = id,
                 name = locker.name,
                 description = locker.description,
-                coordinates = locker.coordinates,
+                vehicle_match_type = locker.vehicle_match_type,
+                vehicle_key = locker.vehicle_key,
                 target_distance = locker.target_distance,
                 access_mode = locker.access_mode,
             }
@@ -221,13 +223,14 @@ local function seedExamples()
         local pinHash = example.pin and Lockers.DB.HashPin(example.pin) or nil
 
         local lockerId = MySQL.insert.await([[
-            INSERT INTO lockers (name, description, coordinates, target_distance, access_mode, pin_hash, key_item, key_metadata, key_consume, key_job_restrict, allowed_jobs, minimum_grade, allowed_identifiers, slots, max_weight, enabled, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO lockers (name, description, vehicle_match_type, vehicle_key, target_distance, access_mode, pin_hash, key_item, key_metadata, key_consume, key_job_restrict, allowed_jobs, minimum_grade, allowed_identifiers, slots, max_weight, enabled, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ]], {
             example.name,
             example.description,
-            Lockers.EncodeJSON(example.coordinates),
-            example.target_distance or 2.0,
+            example.vehicle_match_type or 'model',
+            example.vehicle_key or '',
+            example.target_distance or Config.Vehicle.defaultDistance or 2.5,
             example.access_mode or 'pin_or_key',
             pinHash,
             example.key_item,
@@ -272,6 +275,24 @@ local function seedExamples()
     Lockers.Debug('Beispiel-Schließfächer angelegt')
 end
 
+local function runMigrations()
+    local vehicleTypeColumn = MySQL.scalar.await([[
+        SELECT COUNT(*) FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'lockers'
+          AND COLUMN_NAME = 'vehicle_match_type'
+    ]])
+
+    if not vehicleTypeColumn or tonumber(vehicleTypeColumn) == 0 then
+        MySQL.query.await([[
+            ALTER TABLE `lockers`
+            ADD COLUMN `vehicle_match_type` ENUM('model', 'plate') NOT NULL DEFAULT 'model' AFTER `description`,
+            ADD COLUMN `vehicle_key` VARCHAR(50) NOT NULL DEFAULT '' AFTER `vehicle_match_type`
+        ]])
+        Lockers.Debug('Migration: Fahrzeug-Felder zu lockers hinzugefügt')
+    end
+end
+
 MySQL.ready(function()
     local ok, err = pcall(function()
         local sql = LoadResourceFile(GetCurrentResourceName(), 'install.sql')
@@ -286,6 +307,7 @@ MySQL.ready(function()
             end
         end
 
+        runMigrations()
         seedExamples()
         Lockers.DB.Reload()
     end)

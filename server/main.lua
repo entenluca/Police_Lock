@@ -45,7 +45,7 @@ local function buildLockerPayload(source, locker, token)
     }
 end
 
-RegisterNetEvent('lockers:server:requestOpen', function(lockerId)
+RegisterNetEvent('lockers:server:requestOpen', function(lockerId, vehicleNetId)
     local source = source
 
     if not Lockers.Security.CheckRateLimit(source) then
@@ -57,6 +57,11 @@ RegisterNetEvent('lockers:server:requestOpen', function(lockerId)
         return
     end
 
+    if type(lockerId) ~= 'number' or type(vehicleNetId) ~= 'number' then
+        Lockers.Security.LogSuspicious(source, 'invalid_open', { locker_id = lockerId })
+        return
+    end
+
     local locker = Lockers.DB.GetLocker(lockerId)
 
     if not locker or not locker.enabled then
@@ -64,8 +69,14 @@ RegisterNetEvent('lockers:server:requestOpen', function(lockerId)
         return
     end
 
-    if not Lockers.Security.IsPlayerNearLocker(source, locker) then
+    if not Lockers.Security.IsPlayerNearVehicle(source, vehicleNetId) then
         notify(source, Lockers.L('too_far'), 'error')
+        return
+    end
+
+    if not Lockers.Security.VehicleMatchesLocker(source, locker, vehicleNetId) then
+        Lockers.Security.LogSuspicious(source, 'vehicle_mismatch', { locker_id = lockerId })
+        notify(source, Lockers.L('no_vehicle'), 'error')
         return
     end
 
@@ -83,7 +94,7 @@ RegisterNetEvent('lockers:server:requestOpen', function(lockerId)
         return
     end
 
-    local session = Lockers.Security.CreateSession(source, lockerId)
+    local session = Lockers.Security.CreateSession(source, lockerId, vehicleNetId)
 
     if not session then
         return

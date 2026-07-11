@@ -219,7 +219,20 @@ function handleReturn(item, amount) {
 
 function openAdmin(payload, strings) {
     state.adminData = payload;
-    state.strings = strings || {};
+    state.strings = { ...(strings || {}), ...(payload.strings || {}) };
+
+    const accessModes = payload.access_modes || [];
+    accessModes.forEach((mode) => {
+        if (mode.value && mode.label) {
+            state.strings[`access_${mode.value}`] = mode.label;
+        }
+    });
+
+    const vehicleTypes = payload.vehicle_match_types || [];
+    vehicleTypes.forEach((mode) => {
+        if (mode.value === 'model') state.strings.vehicle_match_model = mode.label;
+        if (mode.value === 'plate') state.strings.vehicle_match_plate = mode.label;
+    });
     document.getElementById('admin-title').textContent = strings.admin_title || 'Admin';
     document.getElementById('admin-new').textContent = strings.admin_new || 'Neu';
 
@@ -235,9 +248,14 @@ function renderAdminList() {
     list.innerHTML = '';
 
     (state.adminData.lockers || []).forEach((entry) => {
+        const locker = entry.locker;
+        const vehicleLabel = locker.vehicle_match_type === 'plate'
+            ? `${state.strings.vehicle_match_plate || 'Kennzeichen'}: ${locker.vehicle_key}`
+            : `${state.strings.vehicle_match_model || 'Modell'}: ${locker.vehicle_key}`;
+
         const btn = document.createElement('button');
-        btn.className = `admin-locker-btn${state.selectedLocker?.locker.id === entry.locker.id ? ' active' : ''}`;
-        btn.innerHTML = `<strong>${entry.locker.name}</strong><br><small>#${entry.locker.id}</small>`;
+        btn.className = `admin-locker-btn${state.selectedLocker?.locker.id === locker.id ? ' active' : ''}`;
+        btn.innerHTML = `<strong>${locker.name}</strong><br><small>#${locker.id} · ${vehicleLabel}</small>`;
         btn.addEventListener('click', () => {
             state.selectedLocker = JSON.parse(JSON.stringify(entry));
             renderAdminList();
@@ -245,6 +263,22 @@ function renderAdminList() {
         });
         list.appendChild(btn);
     });
+}
+
+function renderAccessModeOptions(selected) {
+    return (state.adminData.access_modes || []).map((mode) => {
+        const value = mode.value || mode;
+        const label = mode.label || mode;
+        return `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`;
+    }).join('');
+}
+
+function renderVehicleMatchOptions(selected) {
+    return (state.adminData.vehicle_match_types || []).map((mode) => {
+        const value = mode.value || mode;
+        const label = mode.label || mode;
+        return `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`;
+    }).join('');
 }
 
 function renderAdminEditor() {
@@ -257,38 +291,35 @@ function renderAdminEditor() {
 
     const locker = state.selectedLocker.locker;
     const items = state.selectedLocker.items || [];
-    const coords = locker.coordinates || {};
+    const s = state.strings;
 
     editor.innerHTML = `
         <div class="admin-toolbar">
-            <button class="btn btn-primary" id="save-locker">Speichern</button>
-            <button class="btn btn-ghost" id="dup-locker">Duplizieren</button>
-            <button class="btn btn-ghost" id="set-pos">Position setzen</button>
-            <button class="btn btn-ghost" id="tp-locker">Teleportieren</button>
-            <button class="btn btn-ghost" id="show-logs">Logs</button>
-            <button class="btn btn-ghost" id="delete-locker" style="color:#ef4444">Löschen</button>
+            <button class="btn btn-primary" id="save-locker">${s.admin_save || 'Speichern'}</button>
+            <button class="btn btn-ghost" id="dup-locker">${s.admin_duplicate || 'Duplizieren'}</button>
+            <button class="btn btn-ghost" id="set-vehicle">${s.admin_set_vehicle || 'Vom Fahrzeug übernehmen'}</button>
+            <button class="btn btn-ghost" id="show-logs">${s.admin_logs || 'Logs'}</button>
+            <button class="btn btn-ghost" id="delete-locker" style="color:#ef4444">${s.admin_delete || 'Löschen'}</button>
         </div>
         <div class="admin-section">
             <h3>Grunddaten</h3>
             <div class="form-grid">
-                <div class="field"><label>Name</label><input id="f-name" value="${locker.name || ''}"></div>
-                <div class="field"><label>Zugangsmodus</label>
-                    <select id="f-access">
-                        ${(state.adminData.access_modes || []).map((m) => `<option value="${m}" ${locker.access_mode === m ? 'selected' : ''}>${m}</option>`).join('')}
-                    </select>
+                <div class="field"><label>${s.admin_name || 'Name'}</label><input id="f-name" value="${locker.name || ''}"></div>
+                <div class="field"><label>${s.admin_access_mode || 'Zugangsmodus'}</label>
+                    <select id="f-access">${renderAccessModeOptions(locker.access_mode)}</select>
                 </div>
-                <div class="field full"><label>Beschreibung</label><textarea id="f-desc">${locker.description || ''}</textarea></div>
+                <div class="field full"><label>${s.admin_description || 'Beschreibung'}</label><textarea id="f-desc">${locker.description || ''}</textarea></div>
+                <div class="field"><label>${s.admin_vehicle_match || 'Fahrzeug-Zuordnung'}</label>
+                    <select id="f-vehicle-match">${renderVehicleMatchOptions(locker.vehicle_match_type || 'model')}</select>
+                </div>
+                <div class="field"><label>${s.admin_vehicle_key || 'Modell / Kennzeichen'}</label><input id="f-vehicle-key" value="${locker.vehicle_key || ''}" placeholder="police oder ABC123"></div>
                 <div class="field"><label>PIN (leer = unverändert)</label><input id="f-pin" type="password" placeholder="****"></div>
-                <div class="field"><label>Schlüssel-Item</label><input id="f-key" value="${locker.key_item || ''}"></div>
-                <div class="field"><label>Mindest-Rang</label><input id="f-grade" type="number" value="${locker.minimum_grade || 0}"></div>
-                <div class="field"><label>Target-Distanz</label><input id="f-distance" type="number" step="0.1" value="${locker.target_distance || 2}"></div>
-                <div class="field"><label>Slots</label><input id="f-slots" type="number" value="${locker.slots || 50}"></div>
-                <div class="field"><label>Max. Gewicht</label><input id="f-weight" type="number" value="${locker.max_weight || 100000}"></div>
-                <div class="field"><label>X</label><input id="f-x" type="number" step="0.01" value="${coords.x || 0}"></div>
-                <div class="field"><label>Y</label><input id="f-y" type="number" step="0.01" value="${coords.y || 0}"></div>
-                <div class="field"><label>Z</label><input id="f-z" type="number" step="0.01" value="${coords.z || 0}"></div>
-                <div class="field"><label>Heading</label><input id="f-h" type="number" step="0.1" value="${coords.h || 0}"></div>
-                <div class="field"><label><input type="checkbox" id="f-enabled" ${locker.enabled ? 'checked' : ''}> Aktiv</label></div>
+                <div class="field"><label>${s.admin_key_item || 'Schlüssel-Item'}</label><input id="f-key" value="${locker.key_item || ''}"></div>
+                <div class="field"><label>${s.admin_grade || 'Mindest-Rang'}</label><input id="f-grade" type="number" value="${locker.minimum_grade || 0}"></div>
+                <div class="field"><label>${s.admin_distance || 'Target-Distanz'}</label><input id="f-distance" type="number" step="0.1" value="${locker.target_distance || 2.5}"></div>
+                <div class="field"><label>${s.admin_slots || 'Slots'}</label><input id="f-slots" type="number" value="${locker.slots || 50}"></div>
+                <div class="field"><label>${s.admin_weight || 'Max. Gewicht'}</label><input id="f-weight" type="number" value="${locker.max_weight || 100000}"></div>
+                <div class="field"><label><input type="checkbox" id="f-enabled" ${locker.enabled ? 'checked' : ''}> ${s.admin_enabled || 'Aktiv'}</label></div>
                 <div class="field"><label><input type="checkbox" id="f-consume" ${locker.key_consume ? 'checked' : ''}> Schlüssel verbrauchen</label></div>
             </div>
         </div>
@@ -319,8 +350,7 @@ function renderAdminEditor() {
 
     document.getElementById('save-locker').addEventListener('click', saveLocker);
     document.getElementById('dup-locker').addEventListener('click', () => nuiFetch('adminDuplicateLocker', { lockerId: locker.id }));
-    document.getElementById('set-pos').addEventListener('click', () => nuiFetch('adminGetPosition'));
-    document.getElementById('tp-locker').addEventListener('click', () => nuiFetch('adminTeleport', { coords: locker.coordinates }));
+    document.getElementById('set-vehicle').addEventListener('click', () => nuiFetch('adminGetVehicle'));
     document.getElementById('show-logs').addEventListener('click', () => nuiFetch('adminGetLogs', { lockerId: locker.id }));
     document.getElementById('delete-locker').addEventListener('click', () => {
         if (confirm('Schließfach wirklich löschen?')) {
@@ -354,12 +384,8 @@ function collectLockerForm() {
         max_weight: parseInt(document.getElementById('f-weight').value, 10) || 100000,
         enabled: document.getElementById('f-enabled').checked,
         key_consume: document.getElementById('f-consume').checked,
-        coordinates: {
-            x: parseFloat(document.getElementById('f-x').value) || 0,
-            y: parseFloat(document.getElementById('f-y').value) || 0,
-            z: parseFloat(document.getElementById('f-z').value) || 0,
-            h: parseFloat(document.getElementById('f-h').value) || 0,
-        },
+        vehicle_match_type: document.getElementById('f-vehicle-match').value,
+        vehicle_key: document.getElementById('f-vehicle-key').value,
         allowed_jobs: locker.allowed_jobs || {},
         allowed_identifiers: locker.allowed_identifiers || [],
         key_metadata: locker.key_metadata || {},
@@ -420,11 +446,12 @@ document.getElementById('confirm-ok').addEventListener('click', () => {
 document.getElementById('admin-new').addEventListener('click', () => {
     state.selectedLocker = {
         locker: {
-            name: 'Neues Schließfach',
+            name: 'Neues Fahrzeug-Schließfach',
             description: '',
             access_mode: 'pin_or_key',
-            coordinates: { x: 0, y: 0, z: 0, h: 0 },
-            target_distance: 2,
+            vehicle_match_type: 'model',
+            vehicle_key: '',
+            target_distance: 2.5,
             minimum_grade: 0,
             slots: 50,
             max_weight: 100000,
@@ -491,11 +518,12 @@ window.addEventListener('message', (event) => {
                 <div class="log-row">[${log.timestamp}] ${log.player_name} – ${log.action} ${log.item_name || ''} ${log.amount || ''}</div>
             `).join('') || 'Keine Logs.';
             break;
-        case 'adminPosition':
+        case 'adminVehicle':
             if (state.selectedLocker && data) {
-                state.selectedLocker.locker.coordinates = data;
+                state.selectedLocker.locker.vehicle_match_type = data.vehicle_match_type || 'model';
+                state.selectedLocker.locker.vehicle_key = data.vehicle_key || data.plate || '';
                 renderAdminEditor();
-                toast('Position übernommen', 'success');
+                toast(`Fahrzeug übernommen: ${data.model_label || data.vehicle_key}`, 'success');
             }
             break;
         default:

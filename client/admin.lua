@@ -14,11 +14,13 @@ RegisterNetEvent('lockers:client:openAdmin', function(payload)
             admin_save = Lockers.L('admin_save'),
             admin_delete = Lockers.L('admin_delete'),
             admin_duplicate = Lockers.L('admin_duplicate'),
-            admin_teleport = Lockers.L('admin_teleport'),
-            admin_set_position = Lockers.L('admin_set_position'),
+            admin_set_vehicle = Lockers.L('admin_set_vehicle'),
+            admin_vehicle_match = Lockers.L('admin_vehicle_match'),
+            admin_vehicle_key = Lockers.L('admin_vehicle_key'),
             admin_logs = Lockers.L('admin_logs'),
             admin_items = Lockers.L('admin_items'),
             admin_add_item = Lockers.L('admin_add_item'),
+            admin_access_mode = Lockers.L('admin_access_mode'),
             close = Lockers.L('close'),
         },
     })
@@ -28,13 +30,6 @@ RegisterNetEvent('lockers:client:adminLogs', function(logs)
     SendNUIMessage({
         action = 'adminLogs',
         data = logs,
-    })
-end)
-
-RegisterNetEvent('lockers:client:adminPosition', function(coords)
-    SendNUIMessage({
-        action = 'adminPosition',
-        data = coords,
     })
 end)
 
@@ -74,21 +69,34 @@ RegisterNUICallback('adminGetLogs', function(data, cb)
     cb('ok')
 end)
 
-RegisterNUICallback('adminGetPosition', function(_, cb)
-    TriggerServerEvent('lockers:server:adminGetPosition')
-    cb('ok')
-end)
+RegisterNUICallback('adminGetVehicle', function(_, cb)
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    local vehicle = lib.getClosestVehicle(coords, 6.0, false)
 
-RegisterNUICallback('adminTeleport', function(data, cb)
-    local coords = data.coords
-
-    if coords and coords.x then
-        SetEntityCoords(PlayerPedId(), coords.x, coords.y, coords.z, false, false, false, false)
-
-        if coords.h then
-            SetEntityHeading(PlayerPedId(), coords.h)
-        end
+    if not vehicle or vehicle == 0 then
+        lib.notify({
+            title = Lockers.L('admin_title'),
+            description = Lockers.L('no_vehicle'),
+            type = 'error',
+        })
+        cb('error')
+        return
     end
+
+    local modelHash = GetEntityModel(vehicle)
+    local modelName = Lockers.GetModelName(modelHash)
+    local plate = GetVehicleNumberPlateText(vehicle)
+
+    SendNUIMessage({
+        action = 'adminVehicle',
+        data = {
+            vehicle_match_type = 'model',
+            vehicle_key = modelName,
+            plate = Lockers.NormalizePlate(plate),
+            model_label = modelName,
+        },
+    })
 
     cb('ok')
 end)

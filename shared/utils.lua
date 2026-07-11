@@ -141,3 +141,101 @@ function Lockers.Debug(...)
         print('^3[fivem_lockers]^7', ...)
     end
 end
+
+---@param plate string
+---@return string
+function Lockers.NormalizePlate(plate)
+    if not plate then
+        return ''
+    end
+
+    return plate:gsub('%s+', ''):upper()
+end
+
+---@param modelHash number
+---@return string
+function Lockers.GetModelName(modelHash)
+    if not modelHash or modelHash == 0 then
+        return 'unknown'
+    end
+
+    local name = GetDisplayNameFromVehicleModel(modelHash)
+
+    if name and name ~= 'CARNOTFOUND' then
+        return string.lower(name)
+    end
+
+    return tostring(modelHash)
+end
+
+---@param matchType string
+---@return boolean
+function Lockers.IsValidVehicleMatchType(matchType)
+    return matchType == 'model' or matchType == 'plate'
+end
+
+---@param locker table
+---@param modelHash number
+---@param plate string
+---@return boolean
+function Lockers.VehicleMatchesLocker(locker, modelHash, plate)
+    if not locker or not locker.vehicle_match_type or not locker.vehicle_key then
+        return false
+    end
+
+    if locker.vehicle_match_type == 'plate' then
+        return Lockers.NormalizePlate(locker.vehicle_key) == Lockers.NormalizePlate(plate)
+    end
+
+    if locker.vehicle_match_type == 'model' then
+        local key = locker.vehicle_key:lower()
+        return GetHashKey(key) == modelHash
+    end
+
+    return false
+end
+
+---@param lockers table
+---@param modelHash number
+---@param plate string
+---@return number|nil
+function Lockers.FindLockerForVehicle(lockers, modelHash, plate)
+    local modelMatch
+
+    for id, locker in pairs(lockers) do
+        if locker.enabled and locker.vehicle_match_type == 'plate'
+            and Lockers.VehicleMatchesLocker(locker, modelHash, plate) then
+            return id
+        end
+    end
+
+    for id, locker in pairs(lockers) do
+        if locker.enabled and locker.vehicle_match_type == 'model'
+            and Lockers.VehicleMatchesLocker(locker, modelHash, plate) then
+            modelMatch = id
+            break
+        end
+    end
+
+    return modelMatch
+end
+
+---@return table
+function Lockers.GetAccessModes()
+    return {
+        { value = 'pin_only', label = Lockers.L('access_pin_only') },
+        { value = 'key_only', label = Lockers.L('access_key_only') },
+        { value = 'pin_or_key', label = Lockers.L('access_pin_or_key') },
+        { value = 'pin_and_key', label = Lockers.L('access_pin_and_key') },
+        { value = 'job_only', label = Lockers.L('access_job_only') },
+        { value = 'identifier_only', label = Lockers.L('access_identifier_only') },
+    }
+end
+
+---@return table
+function Lockers.GetVehicleMatchTypes()
+    return {
+        { value = 'model', label = Lockers.L('vehicle_match_model') },
+        { value = 'plate', label = Lockers.L('vehicle_match_plate') },
+    }
+end

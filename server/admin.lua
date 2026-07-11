@@ -21,8 +21,9 @@ local function sanitizeLockerData(data)
         id = data.id,
         name = tostring(data.name or 'Schließfach'):sub(1, 100),
         description = tostring(data.description or ''):sub(1, 2000),
-        coordinates = Lockers.CoordsToTable(data.coordinates or {}),
-        target_distance = math.min(math.max(tonumber(data.target_distance) or 2.0, 0.5), 10.0),
+        vehicle_match_type = Lockers.IsValidVehicleMatchType(data.vehicle_match_type) and data.vehicle_match_type or 'model',
+        vehicle_key = tostring(data.vehicle_key or ''):sub(1, 50),
+        target_distance = math.min(math.max(tonumber(data.target_distance) or Config.Vehicle.defaultDistance or 2.5, 0.5), 10.0),
         access_mode = accessMode,
         pin = data.pin,
         key_item = data.key_item ~= '' and data.key_item or nil,
@@ -96,9 +97,8 @@ local function buildAdminPayload(source)
 
     return {
         lockers = lockers,
-        access_modes = {
-            'pin_only', 'key_only', 'pin_or_key', 'pin_and_key', 'job_only', 'identifier_only',
-        },
+        access_modes = Lockers.GetAccessModes(),
+        vehicle_match_types = Lockers.GetVehicleMatchTypes(),
         locale = Config.Locale,
     }
 end
@@ -139,14 +139,15 @@ RegisterNetEvent('lockers:server:adminSaveLocker', function(data)
 
     if locker.id then
         MySQL.update.await([[
-            UPDATE lockers SET name = ?, description = ?, coordinates = ?, target_distance = ?, access_mode = ?,
+            UPDATE lockers SET name = ?, description = ?, vehicle_match_type = ?, vehicle_key = ?, target_distance = ?, access_mode = ?,
             pin_hash = ?, key_item = ?, key_metadata = ?, key_consume = ?, key_job_restrict = ?, allowed_jobs = ?,
             minimum_grade = ?, allowed_identifiers = ?, slots = ?, max_weight = ?, auto_restock = ?,
             restock_interval = ?, enabled = ? WHERE id = ?
         ]], {
             locker.name,
             locker.description,
-            Lockers.EncodeJSON(locker.coordinates),
+            locker.vehicle_match_type,
+            locker.vehicle_key,
             locker.target_distance,
             locker.access_mode,
             pinHash,
@@ -168,12 +169,13 @@ RegisterNetEvent('lockers:server:adminSaveLocker', function(data)
         Lockers.DB.Log(locker.id, player.identifier, player.name, 'admin_change', 'locker_update', nil, nil)
     else
         locker.id = MySQL.insert.await([[
-            INSERT INTO lockers (name, description, coordinates, target_distance, access_mode, pin_hash, key_item, key_metadata, key_consume, key_job_restrict, allowed_jobs, minimum_grade, allowed_identifiers, slots, max_weight, auto_restock, restock_interval, enabled, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO lockers (name, description, vehicle_match_type, vehicle_key, target_distance, access_mode, pin_hash, key_item, key_metadata, key_consume, key_job_restrict, allowed_jobs, minimum_grade, allowed_identifiers, slots, max_weight, auto_restock, restock_interval, enabled, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ]], {
             locker.name,
             locker.description,
-            Lockers.EncodeJSON(locker.coordinates),
+            locker.vehicle_match_type,
+            locker.vehicle_key,
             locker.target_distance,
             locker.access_mode,
             pinHash,
@@ -228,12 +230,13 @@ RegisterNetEvent('lockers:server:adminDuplicateLocker', function(lockerId)
 
     local player = Lockers.Framework.GetPlayer(source)
     local newId = MySQL.insert.await([[
-        INSERT INTO lockers (name, description, coordinates, target_distance, access_mode, pin_hash, key_item, key_metadata, key_consume, key_job_restrict, allowed_jobs, minimum_grade, allowed_identifiers, slots, max_weight, auto_restock, restock_interval, enabled, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO lockers (name, description, vehicle_match_type, vehicle_key, target_distance, access_mode, pin_hash, key_item, key_metadata, key_consume, key_job_restrict, allowed_jobs, minimum_grade, allowed_identifiers, slots, max_weight, auto_restock, restock_interval, enabled, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ]], {
         locker.name .. ' (Kopie)',
         locker.description,
-        Lockers.EncodeJSON(locker.coordinates),
+        locker.vehicle_match_type,
+        locker.vehicle_key,
         locker.target_distance,
         locker.access_mode,
         locker.pin_hash,
@@ -389,23 +392,14 @@ RegisterNetEvent('lockers:server:adminGetLogs', function(lockerId)
     TriggerClientEvent('lockers:client:adminLogs', source, logs)
 end)
 
-RegisterNetEvent('lockers:server:adminGetPosition', function()
+RegisterNetEvent('lockers:server:adminGetVehicle', function()
     local source = source
 
     if not Lockers.Framework.IsAdmin(source) then
         return
     end
 
-    local ped = GetPlayerPed(source)
-    local coords = GetEntityCoords(ped)
-    local heading = GetEntityHeading(ped)
-
-    TriggerClientEvent('lockers:client:adminPosition', source, {
-        x = coords.x,
-        y = coords.y,
-        z = coords.z,
-        h = heading,
-    })
+    TriggerClientEvent('lockers:client:adminVehicle', source)
 end)
 
 if Config.Admin.enabled then

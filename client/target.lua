@@ -1,145 +1,139 @@
-local registered = {}
-local targetSystem
+Lockers = Lockers or {}
+Lockers.Client = Lockers.Client or {}
 
-local function getTargetSystem()
-    if targetSystem then
-        return targetSystem
-    end
+local lockers = {}
+local targetRegistered = false
 
-    targetSystem = Lockers.Framework.DetectTarget()
-    return targetSystem
+function Lockers.Client.GetLockers()
+    return lockers
 end
 
-local function removeLockerTarget(lockerId)
-    local entry = registered[lockerId]
+---@param entity number
+---@return number|nil
+function Lockers.Client.GetLockerForVehicle(entity)
+    if not entity or entity == 0 or GetEntityType(entity) ~= 2 then
+        return nil
+    end
 
-    if not entry then
+    local modelHash = GetEntityModel(entity)
+    local plate = GetVehicleNumberPlateText(entity)
+
+    return Lockers.FindLockerForVehicle(lockers, modelHash, plate)
+end
+
+local function openVehicleLocker(entity)
+    local lockerId = Lockers.Client.GetLockerForVehicle(entity)
+
+    if not lockerId then
         return
     end
 
-    local system = getTargetSystem()
-
-    if system == 'ox_target' then
-        exports.ox_target:removeZone(entry.zoneId)
-    elseif system == 'qb-target' then
-        exports['qb-target']:RemoveZone(entry.zoneName)
-    end
-
-    registered[lockerId] = nil
+    local netId = NetworkGetNetworkIdFromEntity(entity)
+    TriggerServerEvent('lockers:server:requestOpen', lockerId, netId)
 end
 
-local function addLockerTarget(locker)
-    removeLockerTarget(locker.id)
-
-    local coords = Lockers.ParseCoords(locker.coordinates)
-
-    if not coords then
+local function registerVehicleTarget()
+    if targetRegistered then
         return
     end
 
-    local system = getTargetSystem()
-    local distance = locker.target_distance or 2.0
+    local system = Lockers.Framework.DetectTarget()
     local label = Lockers.L('open_locker')
+    local bones = Config.Vehicle and Config.Vehicle.targetBones or { 'boot', 'platelight' }
+    local distance = Config.Vehicle and Config.Vehicle.defaultDistance or 2.5
 
     if system == 'ox_target' then
-        local zoneId = exports.ox_target:addSphereZone({
-            coords = coords,
-            radius = distance,
-            debug = Config.Debug,
-            options = {
-                {
-                    name = ('locker_%s'):format(locker.id),
-                    icon = 'fa-solid fa-box-open',
-                    label = label,
-                    distance = distance,
-                    onSelect = function()
-                        TriggerServerEvent('lockers:server:requestOpen', locker.id)
-                    end,
-                },
+        exports.ox_target:addGlobalVehicle({
+            {
+                name = 'vehicle_locker',
+                icon = 'fa-solid fa-box-open',
+                label = label,
+                bones = bones,
+                distance = distance,
+                canInteract = function(entity)
+                    return Lockers.Client.GetLockerForVehicle(entity) ~= nil
+                end,
+                onSelect = function(data)
+                    openVehicleLocker(data.entity)
+                end,
             },
         })
 
-        registered[locker.id] = { zoneId = zoneId }
+        targetRegistered = true
+        Lockers.Debug('ox_target Fahrzeug-Schließfächer registriert')
         return
     end
 
     if system == 'qb-target' then
-        local zoneName = ('locker_%s'):format(locker.id)
-
-        exports['qb-target']:AddCircleZone(zoneName, coords, distance, {
-            name = zoneName,
-            debugPoly = Config.Debug,
-            useZ = true,
-        }, {
+        exports['qb-target']:AddGlobalVehicle({
             options = {
                 {
                     type = 'client',
-                    event = 'lockers:client:targetOpen',
+                    event = 'lockers:client:openVehicleLocker',
                     icon = 'fas fa-box-open',
                     label = label,
-                    lockerId = locker.id,
+                    canInteract = function(entity)
+                        return Lockers.Client.GetLockerForVehicle(entity) ~= nil
+                    end,
                 },
             },
             distance = distance,
         })
 
-        registered[locker.id] = { zoneName = zoneName }
+        targetRegistered = true
+        Lockers.Debug('qb-target Fahrzeug-Schließfächer registriert')
         return
     end
 
-    Lockers.Debug('Kein Target-System gefunden – Fallback-TextUI aktiv')
+    Lockers.Debug('Kein Target-System – Fahrzeug-Fallback aktiv')
 end
 
-RegisterNetEvent('lockers:client:targetOpen', function(data)
-    local lockerId = data and data.lockerId
+RegisterNetEvent('lockers:client:openVehicleLocker', function(data)
+    local entity = data and data.entity
 
-    if lockerId then
-        TriggerServerEvent('lockers:server:requestOpen', lockerId)
+    if entity then
+        openVehicleLocker(entity)
     end
 end)
 
-RegisterNetEvent('lockers:client:refreshTargets', function(lockerList)
-    for lockerId in pairs(registered) do
-        removeLockerTarget(lockerId)
+RegisterNetEvent('lockers:client:syncLockers', function(data)
+    lockers = {}
+
+    for i = 1, #(data or {}) do
+        local entry = data[i]
+        lockers[entry.id] = entry
     end
 
-    for i = 1, #(lockerList or {}) do
-        addLockerTarget(lockerList[i])
-    end
+    registerVehicleTarget()
 end)
 
--- Fallback ohne Target-System
+-- Fallback ohne Target: E-Taste am Fahrzeugheck
 CreateThread(function()
     local showing = false
 
-    while not getTargetSystem() do
+    while not targetRegistered do
         local sleep = 1000
         local ped = PlayerPedId()
         local playerCoords = GetEntityCoords(ped)
-        local nearest
+        local vehicle = lib.getClosestVehicle(playerCoords, Config.Security.maxDistance or 3.5, false)
 
-        for i = 1, 200 do
-            local locker = registered[i]
+        if vehicle and vehicle ~= 0 then
+            local lockerId = Lockers.Client.GetLockerForVehicle(vehicle)
 
-            if locker and locker.coords then
-                local dist = #(playerCoords - locker.coords)
+            if lockerId then
+                sleep = 0
 
-                if dist <= (locker.distance or 2.0) and (not nearest or dist < nearest.dist) then
-                    nearest = { id = i, dist = dist }
+                if not showing then
+                    lib.showTextUI(Lockers.L('open_locker'))
+                    showing = true
                 end
-            end
-        end
 
-        if nearest and nearest.dist <= 2.0 then
-            sleep = 0
-
-            if not showing then
-                lib.showTextUI(Lockers.L('open_locker'))
-                showing = true
-            end
-
-            if IsControlJustReleased(0, 38) then
-                TriggerServerEvent('lockers:server:requestOpen', nearest.id)
+                if IsControlJustReleased(0, 38) then
+                    openVehicleLocker(vehicle)
+                end
+            elseif showing then
+                lib.hideTextUI()
+                showing = false
             end
         elseif showing then
             lib.hideTextUI()
@@ -150,12 +144,8 @@ CreateThread(function()
     end
 end)
 
-AddEventHandler('onResourceStop', function(resourceName)
-    if resourceName ~= GetCurrentResourceName() then
-        return
-    end
-
-    for lockerId in pairs(registered) do
-        removeLockerTarget(lockerId)
+AddEventHandler('onResourceStart', function(resourceName)
+    if resourceName == GetCurrentResourceName() then
+        SetTimeout(500, registerVehicleTarget)
     end
 end)

@@ -60,30 +60,54 @@ function Lockers.Security.CheckRequestId(source, requestId)
 end
 
 ---@param source number
----@param locker table
+---@param vehicleNetId number
 ---@return boolean
-function Lockers.Security.IsPlayerNearLocker(source, locker)
+function Lockers.Security.IsPlayerNearVehicle(source, vehicleNetId)
+    if not vehicleNetId or type(vehicleNetId) ~= 'number' then
+        return false
+    end
+
     local ped = GetPlayerPed(source)
 
     if not ped or ped == 0 then
         return false
     end
 
-    local playerCoords = GetEntityCoords(ped)
-    local lockerCoords = Lockers.ParseCoords(locker.coordinates)
+    local entity = NetworkGetEntityFromNetworkId(vehicleNetId)
 
-    if not lockerCoords then
+    if not entity or entity == 0 or GetEntityType(entity) ~= 2 then
         return false
     end
 
-    local maxDistance = locker.target_distance or Config.Security.maxDistance
-    return Lockers.Distance(playerCoords, lockerCoords) <= maxDistance + 0.75
+    local playerCoords = GetEntityCoords(ped)
+    local vehicleCoords = GetEntityCoords(entity)
+    local maxDistance = Config.Security.maxDistance or 3.5
+
+    return Lockers.Distance(playerCoords, vehicleCoords) <= maxDistance
+end
+
+---@param source number
+---@param locker table
+---@param vehicleNetId number
+---@return boolean
+function Lockers.Security.VehicleMatchesLocker(source, locker, vehicleNetId)
+    local entity = NetworkGetEntityFromNetworkId(vehicleNetId)
+
+    if not entity or entity == 0 then
+        return false
+    end
+
+    local plate = GetVehicleNumberPlateText(entity)
+    local modelHash = GetEntityModel(entity)
+
+    return Lockers.VehicleMatchesLocker(locker, modelHash, plate)
 end
 
 ---@param source number
 ---@param lockerId number
+---@param vehicleNetId number
 ---@return table|nil
-function Lockers.Security.CreateSession(source, lockerId)
+function Lockers.Security.CreateSession(source, lockerId, vehicleNetId)
     local locker = Lockers.DB.GetLocker(lockerId)
 
     if not locker then
@@ -96,6 +120,7 @@ function Lockers.Security.CreateSession(source, lockerId)
     sessions[source] = sessions[source] or {}
     sessions[source][token] = {
         lockerId = lockerId,
+        vehicleNetId = vehicleNetId,
         expires = expires,
         authenticated = false,
         pinVerified = false,
@@ -140,7 +165,10 @@ function Lockers.Security.GetSession(source, token)
 
     local locker = Lockers.DB.GetLocker(session.lockerId)
 
-    if not locker or not Lockers.Security.IsPlayerNearLocker(source, locker) then
+    if not locker
+        or not session.vehicleNetId
+        or not Lockers.Security.IsPlayerNearVehicle(source, session.vehicleNetId)
+        or not Lockers.Security.VehicleMatchesLocker(source, locker, session.vehicleNetId) then
         playerSessions[token] = nil
         return nil
     end

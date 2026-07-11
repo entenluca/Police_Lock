@@ -1,4 +1,3 @@
-local lockers = {}
 local nuiOpen = false
 local currentToken
 
@@ -22,10 +21,6 @@ local function closeNui()
     setNui(false)
 end
 
-RegisterNetEvent('lockers:client:syncLockers', function(data)
-    lockers = data or {}
-    TriggerEvent('lockers:client:refreshTargets', lockers)
-end)
 
 RegisterNetEvent('lockers:client:openAuth', function(session)
     currentToken = session.token
@@ -130,8 +125,19 @@ AddEventHandler('onResourceStart', function(resourceName)
     end
 end)
 
-exports('OpenLocker', function(lockerId)
-    TriggerServerEvent('lockers:server:requestOpen', lockerId)
+exports('OpenLocker', function(lockerId, vehicle)
+    if vehicle and DoesEntityExist(vehicle) then
+        TriggerServerEvent('lockers:server:requestOpen', lockerId, NetworkGetNetworkIdFromEntity(vehicle))
+        return
+    end
+
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    local closest = lib.getClosestVehicle(coords, Config.Security.maxDistance or 3.5, false)
+
+    if closest and closest ~= 0 then
+        TriggerServerEvent('lockers:server:requestOpen', lockerId, NetworkGetNetworkIdFromEntity(closest))
+    end
 end)
 
 exports('CloseLocker', closeNui)
