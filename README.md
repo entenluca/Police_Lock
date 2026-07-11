@@ -34,8 +34,7 @@ Fahrzeug-Schließfächer für **ESX** mit **ox_inventory**, **ox_target** und **
 | **Target** | ox_target |
 | **Inventar** | ox_inventory |
 | **Zuordnung** | Fahrzeugmodell oder Kennzeichen |
-| **PIN** | Serverseitige Prüfung, SHA-512-Hash, Sperrzeit bei Fehlversuchen |
-| **NUI** | Dunkles Design, orange Akzente, PIN-Pad, Item-Karten |
+| **UI** | ox_lib Context-Menüs & Input-Dialoge |
 | **Admin** | Ingame-Dashboard zur vollständigen Verwaltung |
 | **Logging** | Datenbank + optional Discord-Webhooks |
 | **Sprachen** | Deutsch (`de`) und Englisch (`en`) |
@@ -213,9 +212,17 @@ key_consume = true
 
 ---
 
-## Beispiel-Schließfächer
+## Beispiel-Schließfächer (optional)
 
-Beim **ersten Start** werden automatisch zwei Beispiel-Schließfächer angelegt (`Config.ExampleLockers`):
+Standardmäßig werden **keine** Beispiel-Schließfächer angelegt. Alle Daten liegen in der Datenbank.
+
+Optional kannst du beim ersten Start Beispieldaten aktivieren:
+
+```lua
+Config.SeedExamples = true
+```
+
+Die Vorlagen stehen in `Config.ExampleLockers` in der `config.lua`. Beispiel:
 
 ### Polizei-Dienstfahrzeug (`police`)
 
@@ -232,7 +239,7 @@ Beim **ersten Start** werden automatisch zwei Beispiel-Schließfächer angelegt 
 | Zugang | Nur Schlüssel |
 | Schlüssel | `evidence_keycard` |
 
-> **Hinweis:** Die PIN `1234` wird nur beim ersten Anlegen verwendet und danach als Hash in der Datenbank gespeichert. Sie wird niemals an Clients gesendet.
+> **Hinweis:** Beispiel-PINs werden nur beim Anlegen verwendet und danach als Hash in der Datenbank gespeichert. Sie werden niemals an Clients gesendet.
 
 ---
 

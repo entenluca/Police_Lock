@@ -212,9 +212,13 @@ function Lockers.DB.IsOnCooldown(lockerId, itemId, identifier)
 end
 
 local function seedExamples()
-    local count = MySQL.scalar.await('SELECT COUNT(*) FROM lockers')
+    if Config.SeedExamples ~= true or not Config.ExampleLockers or #Config.ExampleLockers == 0 then
+        return
+    end
 
-    if tonumber(count) > 0 or not Config.ExampleLockers then
+    local count = tonumber(MySQL.scalar.await('SELECT COUNT(*) FROM lockers')) or 0
+
+    if count > 0 then
         return
     end
 
@@ -276,6 +280,18 @@ local function seedExamples()
 end
 
 local function runMigrations()
+    local coordinatesColumn = MySQL.scalar.await([[
+        SELECT COUNT(*) FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'lockers'
+          AND COLUMN_NAME = 'coordinates'
+    ]])
+
+    if coordinatesColumn and tonumber(coordinatesColumn) > 0 then
+        MySQL.query.await('ALTER TABLE `lockers` DROP COLUMN `coordinates`')
+        Lockers.Debug('Migration: veraltete coordinates-Spalte entfernt')
+    end
+
     local vehicleTypeColumn = MySQL.scalar.await([[
         SELECT COUNT(*) FROM information_schema.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE()

@@ -68,6 +68,7 @@ Locales['de'] = {
     admin_saved = 'Schließfach gespeichert.',
     admin_deleted = 'Schließfach gelöscht.',
     admin_no_permission = 'Keine Admin-Berechtigung.',
+    admin_name_required = 'Bitte einen Namen eingeben.',
     access_pin_only = 'Nur PIN',
     access_key_only = 'Nur Schlüssel',
     access_pin_or_key = 'PIN oder Schlüssel',

@@ -66,8 +66,11 @@ Config.UI = {
 }
 
 -- =============================================================================
--- BEISPIEL: FAHRZEUG-SCHLIESSFÄCHER (werden bei Erstinstallation angelegt)
+-- BEISPIEL-SCHLIESSFÄCHER (optional, standardmäßig deaktiviert)
+-- Setze Config.SeedExamples = true und trage Einträge in ExampleLockers ein.
 -- =============================================================================
+Config.SeedExamples = false
+
 Config.ExampleLockers = {
     {
         name = 'Polizei-Dienstfahrzeug',

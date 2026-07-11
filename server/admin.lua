@@ -19,7 +19,7 @@ local function sanitizeLockerData(data)
 
     return {
         id = data.id,
-        name = tostring(data.name or 'Schließfach'):sub(1, 100),
+        name = tostring(data.name or ''):sub(1, 100),
         description = tostring(data.description or ''):sub(1, 2000),
         vehicle_match_type = Lockers.IsValidVehicleMatchType(data.vehicle_match_type) and data.vehicle_match_type or 'model',
         vehicle_key = tostring(data.vehicle_key or ''):sub(1, 50),
@@ -127,6 +127,11 @@ RegisterNetEvent('lockers:server:adminSaveLocker', function(data)
         return
     end
 
+    if locker.name == '' or not locker.name:match('%S') then
+        notify(source, Lockers.L('admin_name_required'), 'error')
+        return
+    end
+
     local player = Lockers.Framework.GetPlayer(source)
     local pinHash
 
@@ -136,6 +141,8 @@ RegisterNetEvent('lockers:server:adminSaveLocker', function(data)
         local existing = locker.id and Lockers.DB.GetLocker(locker.id)
         pinHash = existing and existing.pin_hash or nil
     end
+
+    local isNew = not locker.id
 
     if locker.id then
         MySQL.update.await([[
@@ -197,7 +204,14 @@ RegisterNetEvent('lockers:server:adminSaveLocker', function(data)
 
     Lockers.DB.Reload()
     notify(source, Lockers.L('admin_saved'), 'success')
-    TriggerClientEvent('lockers:client:openAdmin', source, buildAdminPayload(source))
+
+    local payload = buildAdminPayload(source)
+
+    if isNew and locker.id then
+        payload.selected_locker_id = locker.id
+    end
+
+    TriggerClientEvent('lockers:client:openAdmin', source, payload)
 end)
 
 RegisterNetEvent('lockers:server:adminDeleteLocker', function(lockerId)

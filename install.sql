@@ -2,7 +2,6 @@ CREATE TABLE IF NOT EXISTS `lockers` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(100) NOT NULL,
     `description` TEXT DEFAULT NULL,
-    `coordinates` JSON DEFAULT NULL,
     `vehicle_match_type` ENUM('model', 'plate') NOT NULL DEFAULT 'model',
     `vehicle_key` VARCHAR(50) NOT NULL DEFAULT '',
     `target_distance` FLOAT NOT NULL DEFAULT 2.0,

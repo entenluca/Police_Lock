@@ -68,6 +68,7 @@ Locales['en'] = {
     admin_saved = 'Locker saved.',
     admin_deleted = 'Locker deleted.',
     admin_no_permission = 'No admin permission.',
+    admin_name_required = 'Please enter a name.',
     access_pin_only = 'PIN only',
     access_key_only = 'Key only',
     access_pin_or_key = 'PIN or key',

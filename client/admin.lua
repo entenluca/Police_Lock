@@ -31,6 +31,26 @@ local function showAdminLogs()
     TriggerServerEvent('lockers:server:adminGetLogs', selectedLockerId)
 end
 
+local function emptyLockerTemplate()
+    return {
+        name = '',
+        description = '',
+        access_mode = 'pin_or_key',
+        vehicle_match_type = 'model',
+        vehicle_key = '',
+        target_distance = Config.Vehicle and Config.Vehicle.defaultDistance or 2.5,
+        minimum_grade = 0,
+        slots = 50,
+        max_weight = 100000,
+        enabled = true,
+        key_consume = false,
+        allowed_jobs = {},
+        allowed_identifiers = {},
+        key_metadata = {},
+        key_job_restrict = {},
+    }
+end
+
 local function editLockerDialog(entry)
     local locker = entry.locker
     local accessOptions = {}
@@ -245,19 +265,9 @@ local function showAdminMainMenu()
             title = Lockers.L('admin_new'),
             icon = 'plus',
             onSelect = function()
-                TriggerServerEvent('lockers:server:adminSaveLocker', {
-                    name = 'Neues Fahrzeug-Schließfach',
-                    description = '',
-                    access_mode = 'pin_or_key',
-                    vehicle_match_type = 'model',
-                    vehicle_key = '',
-                    target_distance = 2.5,
-                    minimum_grade = 0,
-                    slots = 50,
-                    max_weight = 100000,
-                    enabled = true,
-                    allowed_jobs = {},
-                    allowed_identifiers = {},
+                editLockerDialog({
+                    locker = emptyLockerTemplate(),
+                    items = {},
                 })
             end,
         },
@@ -294,6 +304,13 @@ end)
 
 RegisterNetEvent('lockers:client:openAdmin', function(payload)
     adminData = payload or {}
+
+    if payload and payload.selected_locker_id then
+        selectedLockerId = payload.selected_locker_id
+        showLockerAdminMenu()
+        return
+    end
+
     showAdminMainMenu()
 end)
 
