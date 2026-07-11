@@ -160,7 +160,9 @@ RegisterNetEvent('lockers:server:submitPin', function(token, pin, requestId)
             return
         end
 
-        TriggerClientEvent('lockers:client:authResult', source, false, Lockers.L('pin_wrong', attemptsLeft or 0))
+        TriggerClientEvent('lockers:client:authResult', source, false, Lockers.L('pin_wrong', attemptsLeft or 0), {
+            retryPin = true,
+        })
         return
     end
 
