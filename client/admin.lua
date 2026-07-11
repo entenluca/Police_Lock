@@ -39,10 +39,6 @@ local function lockerStatusLabel(locker)
     return Lockers.L('admin_status_active')
 end
 
-local function showAdminLogs()
-    TriggerServerEvent('lockers:server:adminGetLogs', selectedLockerId)
-end
-
 local function emptyLockerTemplate()
     return {
         name = '',
@@ -592,11 +588,6 @@ local function showLockerAdminMenu()
                 end,
             },
             {
-                title = Lockers.L('admin_logs'),
-                icon = 'list',
-                onSelect = showAdminLogs,
-            },
-            {
                 title = Lockers.L('admin_duplicate'),
                 icon = 'copy',
                 onSelect = function()
@@ -705,27 +696,6 @@ RegisterNetEvent('lockers:client:openAdmin', function(payload)
     end
 
     showAdminMainMenu()
-end)
-
-RegisterNetEvent('lockers:client:adminLogs', function(logs)
-    local lines = {}
-
-    for i = 1, #(logs or {}) do
-        local log = logs[i]
-        lines[#lines + 1] = ('[%s] %s - %s %s %s'):format(
-            log.timestamp or '',
-            log.player_name or '',
-            log.action or '',
-            log.item_name or '',
-            log.amount or ''
-        )
-    end
-
-    lib.alertDialog({
-        header = Lockers.L('admin_logs'),
-        content = #lines > 0 and table.concat(lines, '\n') or 'Keine Logs.',
-        centered = true,
-    })
 end)
 
 exports('OpenAdminPanel', function()

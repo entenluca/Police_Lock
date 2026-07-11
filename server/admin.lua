@@ -480,21 +480,6 @@ RegisterNetEvent('lockers:server:adminDeleteItem', function(lockerId, itemId)
     openAdminFor(source, lockerId)
 end)
 
-RegisterNetEvent('lockers:server:adminGetLogs', function(lockerId)
-    local source = source
-
-    if not Lockers.Framework.IsAdmin(source) then
-        return
-    end
-
-    local logs = MySQL.query.await(
-        'SELECT * FROM locker_logs WHERE locker_id = ? ORDER BY id DESC LIMIT 100',
-        { lockerId }
-    ) or {}
-
-    TriggerClientEvent('lockers:client:adminLogs', source, logs)
-end)
-
 RegisterNetEvent('lockers:server:adminGetVehicle', function()
     local source = source
 

@@ -53,7 +53,6 @@ Locales['en'] = {
     admin_vehicle_key = 'Model / plate',
     vehicle_match_model = 'Vehicle model',
     vehicle_match_plate = 'License plate',
-    admin_logs = 'Transaction log',
     admin_items = 'Items',
     admin_add_item = 'Add item',
     admin_enabled = 'Enabled',
