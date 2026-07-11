@@ -6,43 +6,13 @@ local function notify(source, message, ntype)
     })
 end
 
-local function buildLockerPayload(source, locker, token)
-    local player = Lockers.Framework.GetPlayer(source)
-    local items = Lockers.DB.GetItems(locker.id)
-    local payloadItems = {}
-
-    for i = 1, #items do
-        if player.grade >= items[i].minimum_grade then
-            payloadItems[#payloadItems + 1] = Lockers.Inventory.BuildClientItem(source, items[i], player)
-        end
+local function openLockerInventory(source, locker, token)
+    if Lockers.Inventory.OpenForPlayer(source, locker, token) then
+        return true
     end
 
-    return {
-        token = token,
-        locker = {
-            id = locker.id,
-            name = locker.name,
-            description = locker.description,
-        },
-        items = payloadItems,
-        locale = Config.Locale,
-        strings = {
-            take = Lockers.L('take'),
-            return_item = Lockers.L('return_item'),
-            amount = Lockers.L('amount'),
-            stock = Lockers.L('stock'),
-            inventory = Lockers.L('inventory'),
-            weight = Lockers.L('weight'),
-            close = Lockers.L('close'),
-            not_allowed = Lockers.L('not_allowed'),
-            unlimited = Lockers.L('unlimited'),
-            confirm_take = Lockers.L('confirm_take'),
-            confirm_yes = Lockers.L('confirm_yes'),
-            confirm_no = Lockers.L('confirm_no'),
-            loading = Lockers.L('loading'),
-        },
-        confirm_threshold = Config.UI.confirmTakeThreshold,
-    }
+    notify(source, Lockers.L('session_expired'), 'error')
+    return false
 end
 
 RegisterNetEvent('lockers:server:requestOpen', function(lockerId, vehicleNetId)
@@ -116,7 +86,7 @@ RegisterNetEvent('lockers:server:requestOpen', function(lockerId, vehicleNetId)
         end
 
         Lockers.DB.Log(lockerId, player.identifier, player.name, 'opened', nil, nil, nil)
-        TriggerClientEvent('lockers:client:openLocker', source, buildLockerPayload(source, locker, token))
+        openLockerInventory(source, locker, token)
         return
     end
 
@@ -171,7 +141,7 @@ RegisterNetEvent('lockers:server:submitPin', function(token, pin, requestId)
 
     if session.authenticated then
         Lockers.DB.Log(locker.id, player.identifier, player.name, 'opened', nil, nil, nil)
-        TriggerClientEvent('lockers:client:openLocker', source, buildLockerPayload(source, locker, token))
+        openLockerInventory(source, locker, token)
         return
     end
 
@@ -223,7 +193,7 @@ RegisterNetEvent('lockers:server:useKey', function(token, requestId)
 
     if session.authenticated then
         Lockers.DB.Log(locker.id, playerData.identifier, playerData.name, 'opened', nil, nil, nil)
-        TriggerClientEvent('lockers:client:openLocker', source, buildLockerPayload(source, locker, token))
+        openLockerInventory(source, locker, token)
         return
     end
 
@@ -233,152 +203,9 @@ RegisterNetEvent('lockers:server:useKey', function(token, requestId)
     })
 end)
 
-RegisterNetEvent('lockers:server:takeItem', function(token, itemId, amount, requestId)
-    local source = source
-
-    if not Lockers.Security.CheckRateLimit(source)
-        or not Lockers.Security.CheckRequestId(source, requestId)
-        or type(itemId) ~= 'number'
-        or type(amount) ~= 'number'
-        or amount < 1
-        or amount > 9999 then
-        Lockers.Security.LogSuspicious(source, 'invalid_take', { item_id = itemId, amount = amount })
-        return
-    end
-
-    if not Lockers.Security.IsSessionAuthenticated(source, token) then
-        notify(source, Lockers.L('session_expired'), 'error')
-        return
-    end
-
-    local session, locker = Lockers.Security.GetSession(source, token)
-
-    if not session or not locker then
-        notify(source, Lockers.L('session_expired'), 'error')
-        return
-    end
-
-    local item = Lockers.DB.GetItem(locker.id, itemId)
-
-    if not item then
-        Lockers.Security.LogSuspicious(source, 'invalid_item', { locker_id = locker.id, item_id = itemId })
-        return
-    end
-
-    local player = Lockers.Framework.GetPlayer(source)
-
-    if player.grade < item.minimum_grade or not Lockers.HasJobAccess(item.allowed_jobs, player.job, player.grade) then
-        notify(source, Lockers.L('not_allowed'), 'error')
-        return
-    end
-
-    if Lockers.DB.IsOnCooldown(locker.id, item.id, player.identifier) then
-        notify(source, Lockers.L('error_generic'), 'error')
-        return
-    end
-
-    if amount > item.maximum_take_amount then
-        notify(source, Lockers.L('error_amount'), 'error')
-        return
-    end
-
-    if not item.unlimited and item.amount < amount then
-        notify(source, Lockers.L('error_stock'), 'error')
-        return
-    end
-
-    local metadata = item.metadata and json.decode(json.encode(item.metadata)) or {}
-
-    if metadata.registered or item.auto_serial then
-        metadata.serial = Lockers.Inventory.GenerateSerial()
-    end
-
-    if item.personal_bind then
-        metadata.owner = player.citizenid
-    end
-
-    if not Lockers.Inventory.CanCarry(source, item.item_name, amount, metadata) then
-        notify(source, Lockers.L('error_inventory'), 'error')
-        return
-    end
-
-    if not Lockers.Inventory.AddItem(source, item.item_name, amount, metadata) then
-        notify(source, Lockers.L('error_inventory'), 'error')
-        return
-    end
-
-    if not item.unlimited then
-        Lockers.DB.UpdateItemAmount(item.id, item.amount - amount)
-    end
-
-    if item.cooldown > 0 then
-        Lockers.DB.SetCooldown(locker.id, item.id, player.identifier, item.cooldown)
-    end
-
-    Lockers.DB.Log(locker.id, player.identifier, player.name, 'item_taken', item.item_name, amount, metadata)
-    notify(source, Lockers.L('success_take', amount, item.display_name or item.item_name), 'success')
-    TriggerClientEvent('lockers:client:openLocker', source, buildLockerPayload(source, locker, token))
-end)
-
-RegisterNetEvent('lockers:server:returnItem', function(token, itemId, amount, requestId)
-    local source = source
-
-    if not Lockers.Security.CheckRateLimit(source)
-        or not Lockers.Security.CheckRequestId(source, requestId)
-        or type(itemId) ~= 'number'
-        or type(amount) ~= 'number'
-        or amount < 1
-        or amount > 9999 then
-        return
-    end
-
-    if not Lockers.Security.IsSessionAuthenticated(source, token) then
-        notify(source, Lockers.L('session_expired'), 'error')
-        return
-    end
-
-    local session, locker = Lockers.Security.GetSession(source, token)
-
-    if not session or not locker then
-        return
-    end
-
-    local item = Lockers.DB.GetItem(locker.id, itemId)
-
-    if not item or not item.returnable then
-        notify(source, Lockers.L('error_return'), 'error')
-        return
-    end
-
-    local player = Lockers.Framework.GetPlayer(source)
-    local playerCount = Lockers.Inventory.GetCount(source, item.item_name)
-
-    if playerCount < amount then
-        notify(source, Lockers.L('error_amount'), 'error')
-        return
-    end
-
-    if not item.unlimited and item.maximum_amount > 0 and (item.amount + amount) > item.maximum_amount then
-        notify(source, Lockers.L('error_stock'), 'error')
-        return
-    end
-
-    if not Lockers.Inventory.RemoveItem(source, item.item_name, amount) then
-        notify(source, Lockers.L('error_generic'), 'error')
-        return
-    end
-
-    if not item.unlimited then
-        Lockers.DB.UpdateItemAmount(item.id, item.amount + amount)
-    end
-
-    Lockers.DB.Log(locker.id, player.identifier, player.name, 'item_returned', item.item_name, amount, nil)
-    notify(source, Lockers.L('success_return', amount, item.display_name or item.item_name), 'success')
-    TriggerClientEvent('lockers:client:openLocker', source, buildLockerPayload(source, locker, token))
-end)
-
 RegisterNetEvent('lockers:server:closeSession', function(token)
     Lockers.Security.DestroySession(source, token)
+    Lockers.Inventory.ClearActiveOpen(source)
 end)
 
 local function startup()

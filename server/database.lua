@@ -107,6 +107,11 @@ function Lockers.DB.Reload()
     end
 
     cache.ready = true
+
+    if Lockers.Inventory and Lockers.Inventory.RegisterAllStashes then
+        Lockers.Inventory.RegisterAllStashes()
+    end
+
     TriggerClientEvent('lockers:client:syncLockers', -1, Lockers.DB.GetClientCache())
 end
 
