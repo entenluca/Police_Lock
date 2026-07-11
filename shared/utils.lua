@@ -191,6 +191,43 @@ function Lockers.GetDialogValue(input, name, index, default)
 end
 
 ---@param vehicle number
+---@param door number
+---@return boolean
+local function isVehicleDoorValid(vehicle, door)
+    if IsDuplicityVersion() then
+        return true
+    end
+
+    local ok, valid = pcall(GetIsDoorValid, vehicle, door)
+    return ok and valid == true
+end
+
+---@param vehicle number
+---@param door number
+---@return number|nil
+local function getVehicleDoorAngle(vehicle, door)
+    local ok, angle = pcall(GetVehicleDoorAngleRatio, vehicle, door)
+
+    if ok and type(angle) == 'number' then
+        return angle
+    end
+
+    return nil
+end
+
+---@param vehicle number
+---@param door number
+---@return boolean
+local function isVehicleDoorFullyOpen(vehicle, door)
+    if IsDuplicityVersion() then
+        return false
+    end
+
+    local ok, open = pcall(IsVehicleDoorFullyOpen, vehicle, door)
+    return ok and open == true
+end
+
+---@param vehicle number
 ---@return boolean
 function Lockers.IsTrunkOpen(vehicle)
     if not vehicle or vehicle == 0 or GetEntityType(vehicle) ~= 2 then
@@ -199,19 +236,34 @@ function Lockers.IsTrunkOpen(vehicle)
 
     local doorIndices = Config.Vehicle and Config.Vehicle.trunkDoorIndices or { 5, 4, 6 }
     local threshold = Config.Vehicle and Config.Vehicle.trunkOpenThreshold or 0.05
+    local checkedDoor = false
 
     for i = 1, #doorIndices do
         local door = doorIndices[i]
 
-        if GetIsDoorValid(vehicle, door) then
-            if GetVehicleDoorAngleRatio(vehicle, door) > threshold then
-                return true
-            end
+        if not isVehicleDoorValid(vehicle, door) then
+            goto continue
+        end
 
-            if IsVehicleDoorFullyOpen(vehicle, door) then
+        local angle = getVehicleDoorAngle(vehicle, door)
+
+        if angle ~= nil then
+            checkedDoor = true
+
+            if angle > threshold then
                 return true
             end
         end
+
+        if isVehicleDoorFullyOpen(vehicle, door) then
+            return true
+        end
+
+        ::continue::
+    end
+
+    if IsDuplicityVersion() and not checkedDoor then
+        return true
     end
 
     return false
