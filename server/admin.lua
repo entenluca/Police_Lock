@@ -374,6 +374,8 @@ RegisterNetEvent('lockers:server:adminDuplicateLocker', function(lockerId)
     Lockers.DB.Reload()
     openAdminFor(source, newId)
 end)
+
+RegisterNetEvent('lockers:server:adminSaveItem', function(lockerId, data)
     local source = source
 
     if not Lockers.Framework.IsAdmin(source) or type(lockerId) ~= 'number' then
