@@ -151,67 +151,75 @@ local function showLockerMenu(payload)
     lib.showContext('locker_main')
 end
 
-local function showAuthMenu(session)
-    currentToken = session.token
-    local options = {}
-
-    if session.requires_pin then
-        options[#options + 1] = {
-            title = Lockers.L('pin_title'),
-            description = Lockers.L('pin_placeholder'),
-            icon = 'key',
-            onSelect = function()
-                local input = lib.inputDialog(Lockers.L('pin_title'), {
-                    {
-                        type = 'input',
-                        label = Lockers.L('pin_placeholder'),
-                        password = true,
-                        required = true,
-                    },
-                })
-
-                if input and input[1] and input[1] ~= '' then
-                    TriggerServerEvent('lockers:server:submitPin', currentToken, input[1], makeRequestId())
-                end
-            end,
-        }
+local function promptPinDialog()
+    if not currentToken then
+        return
     end
 
-    if session.requires_key then
-        options[#options + 1] = {
-            title = Lockers.L('use_key'),
-            description = Lockers.L('key_missing'),
-            icon = 'id-card',
-            onSelect = function()
-                TriggerServerEvent('lockers:server:useKey', currentToken, makeRequestId())
-            end,
-        }
-    end
-
-    options[#options + 1] = {
-        title = Lockers.L('pin_cancel'),
-        icon = 'xmark',
-        onSelect = closeSession,
-    }
-
-    lib.registerContext({
-        id = 'locker_auth',
-        title = session.name,
-        description = session.description,
-        onExit = closeSession,
-        options = options,
+    local input = lib.inputDialog(Lockers.L('pin_title'), {
+        {
+            type = 'input',
+            label = Lockers.L('pin_placeholder'),
+            password = true,
+            required = true,
+        },
     })
 
-    lib.showContext('locker_auth')
+    if input and input[1] and input[1] ~= '' then
+        TriggerServerEvent('lockers:server:submitPin', currentToken, input[1], makeRequestId())
+        return
+    end
+
+    closeSession()
+end
+
+local function startAuthFlow(session)
+    currentToken = session.token
+    local mode = session.access_mode
+
+    if mode == 'pin_only' or mode == 'pin_and_key' then
+        promptPinDialog()
+        return
+    end
+
+    if mode == 'key_only' then
+        TriggerServerEvent('lockers:server:useKey', currentToken, makeRequestId())
+        return
+    end
+
+    if mode == 'pin_or_key' then
+        TriggerServerEvent('lockers:server:useKey', currentToken, makeRequestId())
+        return
+    end
+
+    promptPinDialog()
 end
 
 RegisterNetEvent('lockers:client:openAuth', function(session)
-    showAuthMenu(session)
+    startAuthFlow(session)
 end)
 
 RegisterNetEvent('lockers:client:authResult', function(success, message, extra)
-    if success and extra and (extra.needsKey or extra.needsPin) then
-        lib.notify({ title = Lockers.L('locker_title'), description = message, type = 'inform' })
+    extra = extra or {}
+
+    if success and extra.needsKey and currentToken then
+        TriggerServerEvent('lockers:server:useKey', currentToken, makeRequestId())
+        return
+    end
+
+    if success and extra.needsPin then
+        promptPinDialog()
+        return
+    end
+
+    if not success and extra.fallbackPin then
+        promptPinDialog()
+        return
+    end
+
+    if not success and extra.retryPin then
+        lib.notify({ title = Lockers.L('locker_title'), description = message or Lockers.L('error_generic'), type = 'error' })
+        promptPinDialog()
         return
     end
 
@@ -221,6 +229,7 @@ RegisterNetEvent('lockers:client:authResult', function(success, message, extra)
     end
 
     lib.notify({ title = Lockers.L('locker_title'), description = message or Lockers.L('error_generic'), type = 'error' })
+    closeSession()
 end)
 
 RegisterNetEvent('lockers:client:openLocker', function(payload)

@@ -204,7 +204,9 @@ RegisterNetEvent('lockers:server:useKey', function(token, requestId)
     local hasKey = Lockers.Inventory.HasKey(source, locker.key_item, locker.key_metadata, locker.id)
 
     if not hasKey then
-        TriggerClientEvent('lockers:client:authResult', source, false, Lockers.L('key_missing'))
+        TriggerClientEvent('lockers:client:authResult', source, false, Lockers.L('key_missing'), {
+            fallbackPin = locker.access_mode == 'pin_or_key',
+        })
         return
     end
 
@@ -213,7 +215,7 @@ RegisterNetEvent('lockers:server:useKey', function(token, requestId)
     end
 
     session.keyVerified = true
-  session.authenticated = Lockers.Security.IsSessionAuthenticated(source, token)
+    session.authenticated = Lockers.Security.IsSessionAuthenticated(source, token)
     local playerData = Lockers.Framework.GetPlayer(source)
     Lockers.DB.Log(locker.id, playerData.identifier, playerData.name, 'key_used', locker.key_item, 1, nil)
 
