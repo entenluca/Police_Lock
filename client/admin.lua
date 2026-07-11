@@ -93,6 +93,54 @@ local function lockerToSavePayload(locker, overrides)
     }
 end
 
+local function fetchInventoryItems()
+    return lib.callback.await('lockers:server:getInventoryItems', false) or {}
+end
+
+local function getItemLabelFromList(itemName, inventoryItems)
+    for i = 1, #(inventoryItems or {}) do
+        if inventoryItems[i].name == itemName then
+            return inventoryItems[i].label
+        end
+    end
+
+    return nil
+end
+
+local function buildInventorySelectField(fieldName, label, defaultValue, inventoryItems, required)
+    local options = {}
+
+    for i = 1, #(inventoryItems or {}) do
+        local item = inventoryItems[i]
+        options[#options + 1] = {
+            value = item.name,
+            label = ('%s | %s'):format(item.label, item.name),
+        }
+    end
+
+    if #options == 0 then
+        return {
+            type = 'input',
+            name = fieldName,
+            label = label,
+            default = defaultValue or '',
+            required = required,
+            description = Lockers.L('admin_item_manual_hint'),
+        }
+    end
+
+    return {
+        type = 'select',
+        name = fieldName,
+        label = label,
+        options = options,
+        searchable = true,
+        required = required,
+        default = defaultValue,
+        description = Lockers.L('admin_item_search_hint'),
+    }
+end
+
 local function identifiersToString(identifiers)
     if type(identifiers) ~= 'table' or #identifiers == 0 then
         return ''
@@ -115,7 +163,7 @@ local function parseIdentifiersInput(value)
     return identifiers
 end
 
-local function buildLockerOptionFields(accessMode, locker)
+local function buildLockerOptionFields(accessMode, locker, inventoryItems)
     local fields = {}
 
     if Lockers.AccessModeNeedsPin(accessMode) then
@@ -129,12 +177,13 @@ local function buildLockerOptionFields(accessMode, locker)
     end
 
     if Lockers.AccessModeNeedsKey(accessMode) then
-        fields[#fields + 1] = {
-            type = 'input',
-            name = 'key_item',
-            label = Lockers.L('admin_key_item'),
-            default = locker.key_item or '',
-        }
+        fields[#fields + 1] = buildInventorySelectField(
+            'key_item',
+            Lockers.L('admin_key_item'),
+            locker.key_item,
+            inventoryItems,
+            false
+        )
         fields[#fields + 1] = {
             type = 'checkbox',
             name = 'key_consume',
@@ -245,7 +294,8 @@ local function editLockerDialog(entry, onComplete)
     end
 
     local accessMode = Lockers.GetDialogValue(baseInput, 'access_mode', 3, locker.access_mode or 'pin_or_key')
-    local optionFields = buildLockerOptionFields(accessMode, locker)
+    local inventoryItems = fetchInventoryItems()
+    local optionFields = buildLockerOptionFields(accessMode, locker, inventoryItems)
 
     local optionInput
 
@@ -324,13 +374,18 @@ local function buildItemStockFields(item)
     }
 end
 
-local function saveItemFromDialogs(lockerId, baseInput, stockInput, itemId)
+local function saveItemFromDialogs(lockerId, baseInput, stockInput, itemId, inventoryItems)
     local unlimited = Lockers.ToBool(Lockers.GetDialogValue(baseInput, 'unlimited', 4, false), false)
+    local itemName = Lockers.GetDialogValue(baseInput, 'item_name', nil, '')
     local displayName = Lockers.GetDialogValue(baseInput, 'display_name', 2, '')
+
+    if displayName == '' then
+        displayName = getItemLabelFromList(itemName, inventoryItems) or ''
+    end
 
     TriggerServerEvent('lockers:server:adminSaveItem', lockerId, {
         id = itemId,
-        item_name = Lockers.GetDialogValue(baseInput, 'item_name', 1, ''),
+        item_name = itemName,
         display_name = displayName ~= '' and displayName or nil,
         amount = unlimited and 0 or Lockers.GetDialogValue(stockInput, 'amount', 1, 1),
         maximum_amount = unlimited and 0 or Lockers.GetDialogValue(stockInput, 'maximum_amount', 2, 0),
@@ -342,8 +397,10 @@ local function saveItemFromDialogs(lockerId, baseInput, stockInput, itemId)
 end
 
 local function addItemDialog(lockerId)
+    local inventoryItems = fetchInventoryItems()
+
     local baseInput = lib.inputDialog(Lockers.L('admin_add_item'), {
-        { type = 'input', name = 'item_name', label = Lockers.L('admin_item_name'), required = true },
+        buildInventorySelectField('item_name', Lockers.L('admin_item_name'), nil, inventoryItems, true),
         { type = 'input', name = 'display_name', label = Lockers.L('admin_item_label'), description = 'Optional' },
         { type = 'checkbox', name = 'returnable', label = Lockers.L('admin_returnable'), checked = true },
         { type = 'checkbox', name = 'unlimited', label = Lockers.L('admin_unlimited'), checked = false },
@@ -365,12 +422,14 @@ local function addItemDialog(lockerId)
         end
     end
 
-    saveItemFromDialogs(lockerId, baseInput, stockInput, nil)
+    saveItemFromDialogs(lockerId, baseInput, stockInput, nil, inventoryItems)
 end
 
 local function editItemDialog(lockerId, item)
+    local inventoryItems = fetchInventoryItems()
+
     local baseInput = lib.inputDialog(Lockers.L('admin_edit_item'), {
-        { type = 'input', name = 'item_name', label = Lockers.L('admin_item_name'), default = item.item_name, required = true },
+        buildInventorySelectField('item_name', Lockers.L('admin_item_name'), item.item_name, inventoryItems, true),
         { type = 'input', name = 'display_name', label = Lockers.L('admin_item_label'), default = item.display_name or '' },
         { type = 'checkbox', name = 'returnable', label = Lockers.L('admin_returnable'), checked = item.returnable ~= false },
         { type = 'checkbox', name = 'unlimited', label = Lockers.L('admin_unlimited'), checked = item.unlimited == true },
@@ -392,7 +451,7 @@ local function editItemDialog(lockerId, item)
         end
     end
 
-    saveItemFromDialogs(lockerId, baseInput, stockInput, item.id)
+    saveItemFromDialogs(lockerId, baseInput, stockInput, item.id, inventoryItems)
 end
 
 local function showLockerAdminMenu()

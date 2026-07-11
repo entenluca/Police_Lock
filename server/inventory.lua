@@ -15,6 +15,39 @@ function Lockers.Inventory.Init()
     Lockers.Debug('Inventar: ox_inventory')
 end
 
+---@return table
+function Lockers.Inventory.GetItemOptions()
+    local itemList = exports.ox_inventory:Items()
+    local options = {}
+
+    if type(itemList) ~= 'table' then
+        return options
+    end
+
+    for name, data in pairs(itemList) do
+        if type(name) == 'string' and type(data) == 'table' then
+            options[#options + 1] = {
+                name = name,
+                label = data.label or name,
+            }
+        end
+    end
+
+    table.sort(options, function(a, b)
+        return a.label:lower() < b.label:lower()
+    end)
+
+    return options
+end
+
+lib.callback.register('lockers:server:getInventoryItems', function(source)
+    if not Lockers.Framework.IsAdmin(source) then
+        return {}
+    end
+
+    return Lockers.Inventory.GetItemOptions()
+end)
+
 ---@param source number
 ---@param itemName string
 ---@return number
