@@ -207,12 +207,45 @@ function Lockers.Inventory.OpenForPlayer(source, locker, token)
 end
 
 ---@param source number
----@param lockerId number
+---@return string|nil
+local function getSessionVehiclePlate(source)
+    local active = activeOpens[source]
+
+    if not active then
+        return nil
+    end
+
+    local session = Lockers.Security.GetSession(source, active.token)
+
+    if not session or not session.vehicleNetId then
+        return nil
+    end
+
+    local plate = Lockers.GetVehiclePlateFromNetId(session.vehicleNetId)
+
+    if plate == '' then
+        return nil
+    end
+
+    return plate
+end
+
+---@param source number
 ---@param lockerItem table
 ---@param count number
 ---@param toSlot table|number|nil
-local function applyTakeMetadata(source, lockerItem, count, toSlot)
+---@param vehiclePlate string|nil
+local function applyTakeMetadata(source, lockerItem, count, toSlot, vehiclePlate)
     local metadata = {}
+
+    if Config.Vehicle.addPlateMetadata ~= false and vehiclePlate and vehiclePlate ~= '' then
+        metadata.vehicle_plate = vehiclePlate
+        metadata.description = vehiclePlate
+
+        if lockerItem.metadata and lockerItem.metadata.description and lockerItem.metadata.description ~= '' then
+            metadata.description = ('%s | %s'):format(vehiclePlate, lockerItem.metadata.description)
+        end
+    end
 
     if lockerItem.metadata and lockerItem.metadata.registered then
         metadata.registered = true
@@ -281,7 +314,7 @@ local function handleTakeSuccess(source, lockerId, lockerItem, count, toSlot)
         Lockers.DB.SetCooldown(lockerId, lockerItem.id, player.identifier, lockerItem.cooldown)
     end
 
-    applyTakeMetadata(source, lockerItem, count, toSlot)
+    applyTakeMetadata(source, lockerItem, count, toSlot, getSessionVehiclePlate(source))
 
     Lockers.DB.Log(
         lockerId,

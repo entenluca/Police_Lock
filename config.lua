@@ -16,6 +16,8 @@ Config.Vehicle = {
     requireTrunkOpen = true,
     --- true = ox_target nur bei offenem Kofferraum; false = Ziel sichtbar, Kofferraum wird beim Benutzen geprüft
     requireTrunkOpenForTarget = false,
+    --- Kennzeichen als Metadaten auf entnommenen Items (nur Kennzeichen, kein Modellname)
+    addPlateMetadata = true,
     trunkDoorIndices = { 5, 4, 6, 3, 2 },
     trunkOpenThreshold = 0.01,
     defaultDistance = 2.5,

@@ -318,6 +318,34 @@ end
 
 ---@param vehicle number
 ---@return string
+function Lockers.GetVehiclePlateFromEntity(vehicle)
+    if not vehicle or vehicle == 0 or GetEntityType(vehicle) ~= 2 then
+        return ''
+    end
+
+    local plate = GetVehicleNumberPlateText(vehicle)
+
+    if not plate or plate == '' then
+        return ''
+    end
+
+    return plate:gsub('^%s*(.-)%s*$', '%1')
+end
+
+---@param vehicleNetId number|nil
+---@return string
+function Lockers.GetVehiclePlateFromNetId(vehicleNetId)
+    if not vehicleNetId then
+        return ''
+    end
+
+    local entity = NetworkGetEntityFromNetworkId(vehicleNetId)
+
+    return Lockers.GetVehiclePlateFromEntity(entity)
+end
+
+---@param vehicle number
+---@return string
 function Lockers.GetVehicleKeyFromEntity(vehicle)
     local model = GetEntityModel(vehicle)
     local modelName = Lockers.GetModelName(model)
