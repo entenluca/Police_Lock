@@ -15,6 +15,7 @@ Locales['de'] = {
     no_permission = 'Keine Berechtigung für dieses Schließfach.',
     locker_disabled = 'Dieses Schließfach ist deaktiviert.',
     too_far = 'Du bist zu weit vom Fahrzeug entfernt.',
+    trunk_closed = 'Der Kofferraum muss geöffnet sein.',
     no_vehicle = 'Kein gültiges Fahrzeug gefunden.',
     session_expired = 'Sitzung abgelaufen. Bitte erneut öffnen.',
     take = 'Nehmen',

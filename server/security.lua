@@ -173,6 +173,13 @@ function Lockers.Security.GetSession(source, token)
         return nil
     end
 
+    local entity = NetworkGetEntityFromNetworkId(session.vehicleNetId)
+
+    if not Lockers.IsTrunkOpen(entity) then
+        playerSessions[token] = nil
+        return nil
+    end
+
     return session, locker
 end
 

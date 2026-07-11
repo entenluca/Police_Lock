@@ -10,9 +10,12 @@ Config.Locale = 'de'
 -- FAHRZEUG
 -- =============================================================================
 Config.Vehicle = {
-    --- Target-Bones für Fahrzeug-Schließfächer (Kofferraum / Heck)
-    targetBones = { 'boot', 'platelight', 'bumper_r' },
-    --- Standard-Target-Distanz an Fahrzeugen
+    --- Kofferraum-Bone für ox_target
+    targetBones = { 'boot' },
+    --- Fahrzeugtür-Index für Kofferraum (5 = Heckklappe)
+    trunkDoorIndex = 5,
+    --- Mindest-Öffnungswinkel (0.0–1.0) damit Target sichtbar wird
+    trunkOpenThreshold = 0.1,
     defaultDistance = 2.5,
 }
 

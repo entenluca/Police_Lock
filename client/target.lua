@@ -9,6 +9,16 @@ function Lockers.Client.GetLockers()
 end
 
 ---@param entity number
+---@return boolean
+function Lockers.Client.CanInteractWithLocker(entity)
+    if not Lockers.Client.GetLockerForVehicle(entity) then
+        return false
+    end
+
+    return Lockers.IsTrunkOpen(entity)
+end
+
+---@param entity number
 ---@return number|nil
 function Lockers.Client.GetLockerForVehicle(entity)
     if not entity or entity == 0 or GetEntityType(entity) ~= 2 then
@@ -22,12 +32,11 @@ function Lockers.Client.GetLockerForVehicle(entity)
 end
 
 local function openVehicleLocker(entity)
-    local lockerId = Lockers.Client.GetLockerForVehicle(entity)
-
-    if not lockerId then
+    if not Lockers.Client.CanInteractWithLocker(entity) then
         return
     end
 
+    local lockerId = Lockers.Client.GetLockerForVehicle(entity)
     TriggerServerEvent('lockers:server:requestOpen', lockerId, NetworkGetNetworkIdFromEntity(entity))
 end
 
@@ -37,7 +46,7 @@ local function registerVehicleTarget()
     end
 
     local label = Lockers.L('open_locker')
-    local bones = Config.Vehicle.targetBones or { 'boot', 'platelight', 'bumper_r' }
+    local bones = Config.Vehicle.targetBones or { 'boot' }
     local distance = Config.Vehicle.defaultDistance or 2.5
 
     exports.ox_target:addGlobalVehicle({
@@ -48,7 +57,7 @@ local function registerVehicleTarget()
             bones = bones,
             distance = distance,
             canInteract = function(entity)
-                return Lockers.Client.GetLockerForVehicle(entity) ~= nil
+                return Lockers.Client.CanInteractWithLocker(entity)
             end,
             onSelect = function(data)
                 openVehicleLocker(data.entity)
@@ -57,15 +66,14 @@ local function registerVehicleTarget()
     })
 
     targetRegistered = true
-    Lockers.Debug('ox_target Fahrzeug-Schließfächer registriert')
+    Lockers.Debug('ox_target Kofferraum-Schließfächer registriert (nur bei offenem Kofferraum)')
 end
 
 RegisterNetEvent('lockers:client:syncLockers', function(data)
     lockers = {}
 
     for i = 1, #(data or {}) do
-        local entry = data[i]
-        lockers[entry.id] = entry
+        lockers[data[i].id] = data[i]
     end
 
     registerVehicleTarget()

@@ -339,7 +339,7 @@ Police_Lock/
 
 ## Support & Lizenz
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 
 Bei Problemen `Config.Debug = true` aktivieren und die Server-Konsole prüfen.
 

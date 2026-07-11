@@ -80,6 +80,13 @@ RegisterNetEvent('lockers:server:requestOpen', function(lockerId, vehicleNetId)
         return
     end
 
+    local entity = NetworkGetEntityFromNetworkId(vehicleNetId)
+
+    if not Lockers.IsTrunkOpen(entity) then
+        notify(source, Lockers.L('trunk_closed'), 'error')
+        return
+    end
+
     local player = Lockers.Framework.GetPlayer(source)
 
     if not player or not Lockers.Security.CanAccessLocker(player, locker) then

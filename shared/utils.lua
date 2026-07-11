@@ -142,6 +142,19 @@ function Lockers.Debug(...)
     end
 end
 
+---@param vehicle number
+---@return boolean
+function Lockers.IsTrunkOpen(vehicle)
+    if not vehicle or vehicle == 0 or GetEntityType(vehicle) ~= 2 then
+        return false
+    end
+
+    local doorIndex = Config.Vehicle and Config.Vehicle.trunkDoorIndex or 5
+    local threshold = Config.Vehicle and Config.Vehicle.trunkOpenThreshold or 0.1
+
+    return GetVehicleDoorAngleRatio(vehicle, doorIndex) > threshold
+end
+
 ---@param plate string
 ---@return string
 function Lockers.NormalizePlate(plate)

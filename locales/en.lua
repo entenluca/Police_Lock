@@ -15,6 +15,7 @@ Locales['en'] = {
     no_permission = 'No permission for this locker.',
     locker_disabled = 'This locker is disabled.',
     too_far = 'You are too far from the vehicle.',
+    trunk_closed = 'The trunk must be open.',
     no_vehicle = 'No valid vehicle found.',
     session_expired = 'Session expired. Please open again.',
     take = 'Take',
