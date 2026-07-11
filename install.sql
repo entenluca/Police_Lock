@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS `locker_items` (
 
 CREATE TABLE IF NOT EXISTS `locker_logs` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `locker_id` INT UNSIGNED NOT NULL,
+    `locker_id` INT UNSIGNED DEFAULT NULL,
     `player_identifier` VARCHAR(80) NOT NULL,
     `player_name` VARCHAR(80) DEFAULT NULL,
     `action` VARCHAR(64) NOT NULL,
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS `locker_logs` (
     KEY `idx_locker_logs_player` (`player_identifier`),
     KEY `idx_locker_logs_action` (`action`),
     CONSTRAINT `fk_locker_logs_locker`
-        FOREIGN KEY (`locker_id`) REFERENCES `lockers` (`id`) ON DELETE CASCADE
+        FOREIGN KEY (`locker_id`) REFERENCES `lockers` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `locker_cooldowns` (

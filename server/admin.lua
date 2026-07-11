@@ -222,8 +222,19 @@ RegisterNetEvent('lockers:server:adminDeleteLocker', function(lockerId)
     end
 
     local player = Lockers.Framework.GetPlayer(source)
+    local locker = Lockers.DB.GetLocker(lockerId)
+
+    if not locker then
+        return
+    end
+
+    Lockers.DB.Log(lockerId, player.identifier, player.name, 'admin_change', 'locker_delete', nil, {
+        locker_id = lockerId,
+        locker_name = locker.name,
+        vehicle_match_type = locker.vehicle_match_type,
+        vehicle_key = locker.vehicle_key,
+    })
     MySQL.update.await('DELETE FROM lockers WHERE id = ?', { lockerId })
-    Lockers.DB.Log(lockerId, player.identifier, player.name, 'admin_change', 'locker_delete', nil, nil)
     Lockers.DB.Reload()
     notify(source, Lockers.L('admin_deleted'), 'success')
     TriggerClientEvent('lockers:client:openAdmin', source, buildAdminPayload(source))

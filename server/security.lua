@@ -359,7 +359,7 @@ end
 
 function Lockers.Security.LogSuspicious(source, action, details)
     local player = Lockers.Framework.GetPlayer(source)
-    Lockers.DB.Log(0, player and player.identifier or 'unknown', player and player.name or GetPlayerName(source), 'suspicious', action, nil, details)
+    Lockers.DB.Log(nil, player and player.identifier or 'unknown', player and player.name or GetPlayerName(source), 'suspicious', action, nil, details)
     Lockers.Security.SendDiscordLog({
         player_name = player and player.name or GetPlayerName(source),
         player_identifier = player and player.identifier,

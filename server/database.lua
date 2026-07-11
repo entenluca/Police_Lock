@@ -157,6 +157,10 @@ function Lockers.DB.VerifyPin(pin, stored)
 end
 
 function Lockers.DB.Log(lockerId, identifier, playerName, action, itemName, amount, metadata)
+    if type(lockerId) ~= 'number' or lockerId <= 0 then
+        lockerId = nil
+    end
+
     MySQL.insert('INSERT INTO locker_logs (locker_id, player_identifier, player_name, action, item_name, amount, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)', {
         lockerId,
         identifier,
@@ -306,6 +310,24 @@ local function runMigrations()
             ADD COLUMN `vehicle_key` VARCHAR(50) NOT NULL DEFAULT '' AFTER `vehicle_match_type`
         ]])
         Lockers.Debug('Migration: Fahrzeug-Felder zu lockers hinzugefügt')
+    end
+
+    local logDeleteRule = MySQL.scalar.await([[
+        SELECT DELETE_RULE FROM information_schema.REFERENTIAL_CONSTRAINTS
+        WHERE CONSTRAINT_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'locker_logs'
+          AND CONSTRAINT_NAME = 'fk_locker_logs_locker'
+    ]])
+
+    if logDeleteRule == 'CASCADE' then
+        MySQL.query.await('ALTER TABLE `locker_logs` DROP FOREIGN KEY `fk_locker_logs_locker`')
+        MySQL.query.await('ALTER TABLE `locker_logs` MODIFY `locker_id` INT UNSIGNED NULL')
+        MySQL.query.await([[
+            ALTER TABLE `locker_logs`
+            ADD CONSTRAINT `fk_locker_logs_locker`
+                FOREIGN KEY (`locker_id`) REFERENCES `lockers` (`id`) ON DELETE SET NULL
+        ]])
+        Lockers.Debug('Migration: locker_logs FK auf ON DELETE SET NULL umgestellt')
     end
 end
 
