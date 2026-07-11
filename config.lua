@@ -7,15 +7,6 @@ Config.Debug = false
 Config.Locale = 'de'
 
 -- =============================================================================
--- FRAMEWORK & ADAPTER
--- =============================================================================
-Config.Auto = {
-    Framework = true,
-    Target = true,
-    Inventory = true,
-}
-
--- =============================================================================
 -- FAHRZEUG
 -- =============================================================================
 Config.Vehicle = {
@@ -64,10 +55,7 @@ Config.Admin = {
     enabled = true,
     command = 'lockeradmin',
     permission = 'lockers.admin',
-    groups = {
-        esx = { 'admin', 'superadmin' },
-        qb = { 'god', 'admin' },
-    },
+    groups = { 'admin', 'superadmin' },
 }
 
 -- =============================================================================

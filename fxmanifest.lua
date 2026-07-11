@@ -1,10 +1,10 @@
 fx_version 'cerulean'
 game 'gta5'
 
-name 'fivem_lockers'
+name 'Police_Lock'
 author 'pfuschbyluis'
-description 'Performantes und sicheres Schließfachsystem für ESX und QBCore'
-version '1.0.0'
+description 'Fahrzeug-Schließfachsystem für ESX mit ox_inventory und ox_target'
+version '1.1.0'
 
 lua54 'yes'
 
@@ -43,9 +43,7 @@ server_scripts {
 dependencies {
     'ox_lib',
     'oxmysql',
+    'es_extended',
+    'ox_inventory',
+    'ox_target',
 }
-
--- Optional (mindestens eines empfohlen):
--- ox_target / qb-target
--- ox_inventory / qb-inventory
--- es_extended / qb-core / qbx_core

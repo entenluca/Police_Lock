@@ -371,9 +371,12 @@ RegisterNetEvent('lockers:server:closeSession', function(token)
 end)
 
 local function startup()
-    Lockers.Framework.Init()
+    if not Lockers.Framework.Init() then
+        return
+    end
+
     Lockers.Inventory.Init()
-    print('^2[fivem_lockers]^7 Server gestartet')
+    print('^2[Police_Lock]^7 Server gestartet | ESX + ox_inventory + ox_target')
 end
 
 AddEventHandler('onResourceStart', function(resourceName)

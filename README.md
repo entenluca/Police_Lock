@@ -1,8 +1,8 @@
 # Police_Lock – Fahrzeug-Schließfachsystem
 
-Performantes und sicheres **Fahrzeug-Schließfachsystem** für **ESX** und **QBCore**. Schließfächer werden Fahrzeugmodellen oder Kennzeichen zugeordnet – nicht festen Standorten.
+Performantes und sicheres **Fahrzeug-Schließfachsystem** für **ESX** mit **ox_inventory** und **ox_target**.
 
-![Version](https://img.shields.io/badge/version-1.0.0-orange)
+![Version](https://img.shields.io/badge/version-1.1.0-orange)
 ![FiveM](https://img.shields.io/badge/FiveM-ready-green)
 ![Lua](https://img.shields.io/badge/Lua-5.4-blue)
 
@@ -18,7 +18,7 @@ Performantes und sicheres **Fahrzeug-Schließfachsystem** für **ESX** und **QBC
 - [Admin-Dashboard](#admin-dashboard)
 - [Schlüssel-Items](#schlüssel-items)
 - [Beispiel-Schließfächer](#beispiel-schließfächer)
-- [Framework-Anleitungen](#framework-anleitungen)
+- [ESX & ox_inventory](#esx--ox_inventory)
 - [Discord-Logging](#discord-logging)
 - [Sicherheit](#sicherheit)
 - [Exports](#exports)
@@ -30,9 +30,9 @@ Performantes und sicheres **Fahrzeug-Schließfachsystem** für **ESX** und **QBC
 
 | Bereich | Details |
 |---------|---------|
-| **Framework** | ESX, QBCore/Qbox, Standalone – Auto-Erkennung |
-| **Target** | ox_target (bevorzugt) oder qb-target |
-| **Inventar** | ox_inventory (bevorzugt) oder qb-inventory |
+| **Framework** | ESX (`es_extended`) |
+| **Target** | ox_target |
+| **Inventar** | ox_inventory |
 | **Zuordnung** | Fahrzeugmodell oder Kennzeichen |
 | **PIN** | Serverseitige Prüfung, SHA-512-Hash, Sperrzeit bei Fehlversuchen |
 | **NUI** | Dunkles Design, orange Akzente, PIN-Pad, Item-Karten |
@@ -45,15 +45,11 @@ Performantes und sicheres **Fahrzeug-Schließfachsystem** für **ESX** und **QBC
 ## Voraussetzungen
 
 **Pflicht:**
+- [es_extended](https://github.com/esx-framework/esx_core) (ESX)
 - [ox_lib](https://github.com/overextended/ox_lib)
 - [oxmysql](https://github.com/overextended/oxmysql)
-
-**Empfohlen:**
-- [ox_target](https://github.com/overextended/ox_target)
 - [ox_inventory](https://github.com/overextended/ox_inventory)
-
-**Optional:**
-- qb-target, qb-inventory, es_extended, qb-core, qbx_core
+- [ox_target](https://github.com/overextended/ox_target)
 
 ---
 
@@ -80,8 +76,9 @@ mysql -u USER -p DATENBANK < install.sql
 ```cfg
 ensure ox_lib
 ensure oxmysql
-ensure ox_target
+ensure es_extended
 ensure ox_inventory
+ensure ox_target
 ensure Police_Lock
 ```
 
@@ -98,29 +95,6 @@ add_principal identifier.license:DEINELIZENZ group.admin
 
 Alle Einstellungen in `config.lua`.
 
-### Auto-Erkennung (Standard)
-
-```lua
-Config.Auto = {
-    Framework = true,   -- ESX oder QBCore
-    Target = true,      -- ox_target oder qb-target
-    Inventory = true,   -- ox_inventory oder qb-inventory
-}
-```
-
-### Manuell festlegen
-
-```lua
-Config.Auto.Framework = false
-Config.Framework = 'esx'          -- 'esx' | 'qb' | 'standalone'
-
-Config.Auto.Target = false
-Config.Target = 'ox_target'       -- 'ox_target' | 'qb-target'
-
-Config.Auto.Inventory = false
-Config.Inventory = 'ox_inventory' -- 'ox_inventory' | 'qb-inventory'
-```
-
 ### Sprache
 
 ```lua
@@ -134,6 +108,12 @@ Config.Debug = true
 ```
 
 Aktiviert Konsolen-Ausgaben und Target-Debug-Polygone.
+
+### Admin-Gruppen (ESX)
+
+```lua
+Config.Admin.groups = { 'admin', 'superadmin' }
+```
 
 ---
 
@@ -256,27 +236,18 @@ Beim **ersten Start** werden automatisch zwei Beispiel-Schließfächer angelegt 
 
 ---
 
-## Framework-Anleitungen
+## ESX & ox_inventory
 
-### ESX
+1. `es_extended`, `ox_inventory` und `ox_target` in der richtigen Reihenfolge starten
+2. Job-Ränge entsprechen `job.grade` in ESX
+3. Admin-Gruppen in `Config.Admin.groups` anpassen (`admin`, `superadmin`)
+4. Item-Bilder: `nui://ox_inventory/web/images/`
+5. Waffen-Seriennummern bei `metadata.registered = true`
+6. Tragbarkeit wird vor jeder Entnahme mit `CanCarryItem` geprüft
 
-1. `es_extended` + `ox_inventory` starten
-2. `Config.Auto.Framework = true` (Standard)
-3. Job-Ränge = `job.grade` in ESX
-4. Admin-Gruppen in `Config.Admin.groups.esx` anpassen (`admin`, `superadmin`)
+### Schlüssel-Items in ox_inventory (`data/items.lua`)
 
-### QBCore / Qbox
-
-1. `qb-core` oder `qbx_core` starten
-2. `ox_inventory` oder `qb-inventory` nutzen
-3. Job-Ränge = `job.grade.level`
-4. Admin-Gruppen in `Config.Admin.groups.qb` anpassen (`god`, `admin`)
-
-### ox_inventory
-
-- Item-Bilder: `nui://ox_inventory/web/images/`
-- Waffen-Seriennummern bei `metadata.registered = true`
-- Tragbarkeit wird vor jeder Entnahme mit `CanCarryItem` geprüft
+Siehe Abschnitt [Schlüssel-Items](#schlüssel-items).
 
 ---
 

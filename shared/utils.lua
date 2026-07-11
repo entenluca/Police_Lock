@@ -138,7 +138,7 @@ end
 
 function Lockers.Debug(...)
     if Config.Debug then
-        print('^3[fivem_lockers]^7', ...)
+        print('^3[Police_Lock]^7', ...)
     end
 end
 

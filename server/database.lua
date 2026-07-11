@@ -313,11 +313,11 @@ MySQL.ready(function()
     end)
 
     if not ok then
-        print(('^1[fivem_lockers]^7 Datenbank-Fehler: %s'):format(err))
+        print(('^1[Police_Lock]^7 Datenbank-Fehler: %s'):format(err))
         return
     end
 
-    print('^2[fivem_lockers]^7 Datenbank bereit')
+    print('^2[Police_Lock]^7 Datenbank bereit')
 end)
 
 AddEventHandler('playerJoining', function()

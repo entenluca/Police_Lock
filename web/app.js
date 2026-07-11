@@ -22,7 +22,7 @@ let state = {
 
 const resourceName = typeof GetParentResourceName === 'function'
     ? GetParentResourceName()
-    : 'fivem_lockers';
+    : 'Police_Lock';
 
 function nuiFetch(endpoint, data = {}) {
     return fetch(`https://${resourceName}/${endpoint}`, {

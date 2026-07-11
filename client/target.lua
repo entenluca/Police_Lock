@@ -28,8 +28,7 @@ local function openVehicleLocker(entity)
         return
     end
 
-    local netId = NetworkGetNetworkIdFromEntity(entity)
-    TriggerServerEvent('lockers:server:requestOpen', lockerId, netId)
+    TriggerServerEvent('lockers:server:requestOpen', lockerId, NetworkGetNetworkIdFromEntity(entity))
 end
 
 local function registerVehicleTarget()
@@ -37,64 +36,29 @@ local function registerVehicleTarget()
         return
     end
 
-    local system = Lockers.Framework.DetectTarget()
     local label = Lockers.L('open_locker')
-    local bones = Config.Vehicle and Config.Vehicle.targetBones or { 'boot', 'platelight' }
-    local distance = Config.Vehicle and Config.Vehicle.defaultDistance or 2.5
+    local bones = Config.Vehicle.targetBones or { 'boot', 'platelight', 'bumper_r' }
+    local distance = Config.Vehicle.defaultDistance or 2.5
 
-    if system == 'ox_target' then
-        exports.ox_target:addGlobalVehicle({
-            {
-                name = 'vehicle_locker',
-                icon = 'fa-solid fa-box-open',
-                label = label,
-                bones = bones,
-                distance = distance,
-                canInteract = function(entity)
-                    return Lockers.Client.GetLockerForVehicle(entity) ~= nil
-                end,
-                onSelect = function(data)
-                    openVehicleLocker(data.entity)
-                end,
-            },
-        })
-
-        targetRegistered = true
-        Lockers.Debug('ox_target Fahrzeug-Schließfächer registriert')
-        return
-    end
-
-    if system == 'qb-target' then
-        exports['qb-target']:AddGlobalVehicle({
-            options = {
-                {
-                    type = 'client',
-                    event = 'lockers:client:openVehicleLocker',
-                    icon = 'fas fa-box-open',
-                    label = label,
-                    canInteract = function(entity)
-                        return Lockers.Client.GetLockerForVehicle(entity) ~= nil
-                    end,
-                },
-            },
+    exports.ox_target:addGlobalVehicle({
+        {
+            name = 'vehicle_locker',
+            icon = 'fa-solid fa-box-open',
+            label = label,
+            bones = bones,
             distance = distance,
-        })
+            canInteract = function(entity)
+                return Lockers.Client.GetLockerForVehicle(entity) ~= nil
+            end,
+            onSelect = function(data)
+                openVehicleLocker(data.entity)
+            end,
+        },
+    })
 
-        targetRegistered = true
-        Lockers.Debug('qb-target Fahrzeug-Schließfächer registriert')
-        return
-    end
-
-    Lockers.Debug('Kein Target-System – Fahrzeug-Fallback aktiv')
+    targetRegistered = true
+    Lockers.Debug('ox_target Fahrzeug-Schließfächer registriert')
 end
-
-RegisterNetEvent('lockers:client:openVehicleLocker', function(data)
-    local entity = data and data.entity
-
-    if entity then
-        openVehicleLocker(entity)
-    end
-end)
 
 RegisterNetEvent('lockers:client:syncLockers', function(data)
     lockers = {}
@@ -107,45 +71,8 @@ RegisterNetEvent('lockers:client:syncLockers', function(data)
     registerVehicleTarget()
 end)
 
--- Fallback ohne Target: E-Taste am Fahrzeugheck
-CreateThread(function()
-    local showing = false
-
-    while not targetRegistered do
-        local sleep = 1000
-        local ped = PlayerPedId()
-        local playerCoords = GetEntityCoords(ped)
-        local vehicle = lib.getClosestVehicle(playerCoords, Config.Security.maxDistance or 3.5, false)
-
-        if vehicle and vehicle ~= 0 then
-            local lockerId = Lockers.Client.GetLockerForVehicle(vehicle)
-
-            if lockerId then
-                sleep = 0
-
-                if not showing then
-                    lib.showTextUI(Lockers.L('open_locker'))
-                    showing = true
-                end
-
-                if IsControlJustReleased(0, 38) then
-                    openVehicleLocker(vehicle)
-                end
-            elseif showing then
-                lib.hideTextUI()
-                showing = false
-            end
-        elseif showing then
-            lib.hideTextUI()
-            showing = false
-        end
-
-        Wait(sleep)
-    end
-end)
-
 AddEventHandler('onResourceStart', function(resourceName)
-    if resourceName == GetCurrentResourceName() then
+    if resourceName == GetCurrentResourceName() or resourceName == 'ox_target' then
         SetTimeout(500, registerVehicleTarget)
     end
 end)

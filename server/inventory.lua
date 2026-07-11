@@ -1,69 +1,25 @@
 Lockers = Lockers or {}
 Lockers.Inventory = Lockers.Inventory or {}
 
-local adapter
-
 local function getItemLabel(itemName)
-    local info = Lockers.Framework.GetResolved()
-
-    if info.inventory == 'ox_inventory' then
-        local item = exports.ox_inventory:Items(itemName)
-        return item and item.label or itemName
-    end
-
-    if info.framework == 'qb' then
-        local QBCore = exports['qb-core']:GetCoreObject()
-        local shared = QBCore.Shared.Items[itemName]
-        return shared and shared.label or itemName
-    end
-
-    return itemName
+    local item = exports.ox_inventory:Items(itemName)
+    return item and item.label or itemName
 end
 
 local function getItemWeight(itemName)
-    local info = Lockers.Framework.GetResolved()
-
-    if info.inventory == 'ox_inventory' then
-        local item = exports.ox_inventory:Items(itemName)
-        return item and item.weight or 0
-    end
-
-    if info.framework == 'qb' then
-        local QBCore = exports['qb-core']:GetCoreObject()
-        local shared = QBCore.Shared.Items[itemName]
-        return shared and shared.weight or 0
-    end
-
-    return 0
+    local item = exports.ox_inventory:Items(itemName)
+    return item and item.weight or 0
 end
 
 function Lockers.Inventory.Init()
-    local info = Lockers.Framework.GetResolved()
-    adapter = info.inventory
-    Lockers.Debug('Inventar-Adapter: ' .. tostring(adapter))
+    Lockers.Debug('Inventar: ox_inventory')
 end
 
 ---@param source number
 ---@param itemName string
 ---@return number
 function Lockers.Inventory.GetCount(source, itemName)
-    if adapter == 'ox_inventory' then
-        return exports.ox_inventory:GetItemCount(source, itemName) or 0
-    end
-
-    if adapter == 'qb-inventory' then
-        local player = Lockers.Framework.GetPlayer(source)
-
-        if not player then
-            return 0
-        end
-
-        local QBCore = exports['qb-core']:GetCoreObject()
-        local item = QBCore.Functions.GetPlayer(source).Functions.GetItemByName(itemName)
-        return item and item.amount or 0
-    end
-
-    return 0
+    return exports.ox_inventory:GetItemCount(source, itemName) or 0
 end
 
 ---@param source number
@@ -72,15 +28,7 @@ end
 ---@param metadata table|nil
 ---@return boolean
 function Lockers.Inventory.CanCarry(source, itemName, amount, metadata)
-    if adapter == 'ox_inventory' then
-        return exports.ox_inventory:CanCarryItem(source, itemName, amount, metadata)
-    end
-
-    if adapter == 'qb-inventory' then
-        return true
-    end
-
-    return true
+    return exports.ox_inventory:CanCarryItem(source, itemName, amount, metadata)
 end
 
 ---@param source number
@@ -89,16 +37,7 @@ end
 ---@param metadata table|nil
 ---@return boolean
 function Lockers.Inventory.AddItem(source, itemName, amount, metadata)
-    if adapter == 'ox_inventory' then
-        return exports.ox_inventory:AddItem(source, itemName, amount, metadata) ~= false
-    end
-
-    if adapter == 'qb-inventory' then
-        local QBCore = exports['qb-core']:GetCoreObject()
-        return QBCore.Functions.GetPlayer(source).Functions.AddItem(itemName, amount, false, metadata)
-    end
-
-    return false
+    return exports.ox_inventory:AddItem(source, itemName, amount, metadata) ~= false
 end
 
 ---@param source number
@@ -107,16 +46,7 @@ end
 ---@param metadata table|nil
 ---@return boolean
 function Lockers.Inventory.RemoveItem(source, itemName, amount, metadata)
-    if adapter == 'ox_inventory' then
-        return exports.ox_inventory:RemoveItem(source, itemName, amount, metadata)
-    end
-
-    if adapter == 'qb-inventory' then
-        local QBCore = exports['qb-core']:GetCoreObject()
-        return QBCore.Functions.GetPlayer(source).Functions.RemoveItem(itemName, amount, false, metadata)
-    end
-
-    return false
+    return exports.ox_inventory:RemoveItem(source, itemName, amount, metadata)
 end
 
 ---@param source number
@@ -130,36 +60,27 @@ function Lockers.Inventory.HasKey(source, keyItem, keyMetadata, lockerId)
         return false
     end
 
-    if adapter == 'ox_inventory' then
-        local items = exports.ox_inventory:Search(source, 'slots', keyItem) or {}
+    local items = exports.ox_inventory:Search(source, 'slots', keyItem) or {}
 
-        for i = 1, #items do
-            local slot = items[i]
-            local meta = slot.metadata or {}
+    for i = 1, #items do
+        local slot = items[i]
+        local meta = slot.metadata or {}
 
-            if keyMetadata and keyMetadata.universal then
-                return true, meta
-            end
-
-            if meta.locker_id and tonumber(meta.locker_id) == lockerId then
-                return true, meta
-            end
-
-            if not meta.locker_id and (not keyMetadata or not keyMetadata.locker_id) then
-                return true, meta
-            end
-
-            if keyMetadata and keyMetadata.locker_id and tonumber(keyMetadata.locker_id) == lockerId then
-                return true, meta
-            end
+        if keyMetadata and keyMetadata.universal then
+            return true, meta
         end
 
-        return false
-    end
+        if meta.locker_id and tonumber(meta.locker_id) == lockerId then
+            return true, meta
+        end
 
-    if adapter == 'qb-inventory' then
-        local count = Lockers.Inventory.GetCount(source, keyItem)
-        return count > 0, {}
+        if not meta.locker_id and (not keyMetadata or not keyMetadata.locker_id) then
+            return true, meta
+        end
+
+        if keyMetadata and keyMetadata.locker_id and tonumber(keyMetadata.locker_id) == lockerId then
+            return true, meta
+        end
     end
 
     return false
