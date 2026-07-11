@@ -163,9 +163,18 @@ RegisterNetEvent('lockers:server:adminSaveLocker', function(data)
 
     if locker.pin and locker.pin ~= '' then
         pinHash = Lockers.DB.HashPin(locker.pin)
-    elseif data.keep_pin then
+    elseif data.keep_pin and Lockers.AccessModeNeedsPin(locker.access_mode) then
         local existing = locker.id and Lockers.DB.GetLocker(locker.id)
         pinHash = existing and existing.pin_hash or nil
+    end
+
+    if not Lockers.AccessModeNeedsPin(locker.access_mode) then
+        pinHash = nil
+    end
+
+    if not Lockers.AccessModeNeedsKey(locker.access_mode) then
+        locker.key_item = nil
+        locker.key_consume = false
     end
 
     local isNew = not locker.id

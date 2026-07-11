@@ -233,6 +233,30 @@ function Lockers.ResolveVehicleHash(key)
     return joaat(key:lower())
 end
 
+---@param mode string
+---@return boolean
+function Lockers.AccessModeNeedsPin(mode)
+    return mode == 'pin_only' or mode == 'pin_or_key' or mode == 'pin_and_key'
+end
+
+---@param mode string
+---@return boolean
+function Lockers.AccessModeNeedsKey(mode)
+    return mode == 'key_only' or mode == 'pin_or_key' or mode == 'pin_and_key'
+end
+
+---@param mode string
+---@return boolean
+function Lockers.AccessModeNeedsJobFields(mode)
+    return mode == 'job_only'
+end
+
+---@param mode string
+---@return boolean
+function Lockers.AccessModeNeedsIdentifiers(mode)
+    return mode == 'identifier_only'
+end
+
 ---@param vehicle number
 ---@return string
 function Lockers.GetVehicleKeyFromEntity(vehicle)
