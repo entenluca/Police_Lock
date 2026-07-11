@@ -18,6 +18,34 @@ local function getItemWeight(itemName)
     return item and item.weight or 0
 end
 
+---@param lockerItem table|string
+---@return string
+function Lockers.Inventory.GetItemLabel(lockerItem)
+    if type(lockerItem) == 'string' then
+        return getItemLabel(lockerItem)
+    end
+
+    if type(lockerItem) == 'table' then
+        if lockerItem.display_name and lockerItem.display_name ~= '' then
+            return lockerItem.display_name
+        end
+
+        if lockerItem.item_name then
+            return getItemLabel(lockerItem.item_name)
+        end
+    end
+
+    return tostring(lockerItem)
+end
+
+local function notifyPlayer(source, message, ntype)
+    TriggerClientEvent('ox_lib:notify', source, {
+        title = Lockers.L('locker_title'),
+        description = message,
+        type = ntype or 'inform',
+    })
+end
+
 ---@param lockerId number
 ---@return string
 function Lockers.Inventory.GetStashId(lockerId)
@@ -264,6 +292,8 @@ local function handleTakeSuccess(source, lockerId, lockerItem, count, toSlot)
         count,
         lockerItem.metadata
     )
+
+    notifyPlayer(source, Lockers.L('success_take', count, Lockers.Inventory.GetItemLabel(lockerItem)), 'success')
 end
 
 ---@param source number
@@ -299,6 +329,8 @@ local function handleReturnSuccess(source, lockerId, lockerItem, count)
             exports.ox_inventory:SetMetadata(stashId, slot.slot, buildStashMetadata(lockerItem))
         end
     end
+
+    notifyPlayer(source, Lockers.L('success_return', count, Lockers.Inventory.GetItemLabel(lockerItem)), 'success')
 end
 
 ---@param source number
@@ -414,22 +446,27 @@ local function registerInventoryHooks()
 
             if player.grade < lockerItem.minimum_grade
                 or not Lockers.HasJobAccess(lockerItem.allowed_jobs, player.job, player.grade) then
+                notifyPlayer(payload.source, Lockers.L('not_allowed'), 'error')
                 return false
             end
 
             if Lockers.DB.IsOnCooldown(lockerId, lockerItem.id, player.identifier) then
+                notifyPlayer(payload.source, Lockers.L('error_generic'), 'error')
                 return false
             end
 
             if count > lockerItem.maximum_take_amount then
+                notifyPlayer(payload.source, Lockers.L('error_amount'), 'error')
                 return false
             end
 
             if not lockerItem.unlimited and lockerItem.amount < count then
+                notifyPlayer(payload.source, Lockers.L('error_stock'), 'error')
                 return false
             end
 
             if not Lockers.Inventory.CanCarry(payload.source, lockerItem.item_name, count, fromSlot.metadata) then
+                notifyPlayer(payload.source, Lockers.L('error_inventory'), 'error')
                 return false
             end
 
@@ -446,16 +483,19 @@ local function registerInventoryHooks()
             local lockerItem = findReturnableLockerItem(lockerId, fromSlot.name)
 
             if not lockerItem then
+                notifyPlayer(payload.source, Lockers.L('error_return'), 'error')
                 return false
             end
 
             if Lockers.Inventory.GetCount(payload.source, fromSlot.name) < count then
+                notifyPlayer(payload.source, Lockers.L('error_amount'), 'error')
                 return false
             end
 
             if not lockerItem.unlimited
                 and lockerItem.maximum_amount > 0
                 and (lockerItem.amount + count) > lockerItem.maximum_amount then
+                notifyPlayer(payload.source, Lockers.L('error_stock'), 'error')
                 return false
             end
 
@@ -640,7 +680,7 @@ end
 ---@param player table
 ---@return table
 function Lockers.Inventory.BuildClientItem(source, item, player)
-    local label = item.display_name or getItemLabel(item.item_name)
+    local label = Lockers.Inventory.GetItemLabel(item)
     local image = item.image or ('%s%s.png'):format('nui://ox_inventory/web/images/', item.item_name)
     local allowed = Lockers.HasJobAccess(item.allowed_jobs, player.job, player.grade)
         and player.grade >= (item.minimum_grade or 0)
