@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="de" class="nui-hidden">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoGlovebox Admin</title>
+    <style>
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: none !important;
+            background-color: rgba(0, 0, 0, 0) !important;
+        }
+        html.nui-hidden {
+            display: none !important;
+        }
+    </style>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="nui-root">
+    <div id="app">
+        <div class="panel">
+            <header class="header">
+                <div class="brand">
+                    <h1>AutoGlovebox</h1>
+                    <p><span class="status-dot" id="statusDot"></span><span id="statusBar">Bereit</span></p>
+                </div>
+                <div class="header-actions">
+                    <button id="refreshBtn" class="btn btn-outline btn-icon" title="Aktualisieren">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 3v6h-6"/></svg>
+                    </button>
+                    <button id="closeBtn" class="btn btn-outline btn-icon" title="Schließen (ESC)">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </header>
+
+            <div class="layout">
+                <!-- ============ SIDEBAR ============ -->
+                <aside class="sidebar">
+                    <div class="sidebar-top">
+                        <div class="storage-tabs" role="tablist">
+                            <button class="storage-tab active" data-storage="glovebox">Handschuhfach</button>
+                            <button class="storage-tab" data-storage="trunk">Kofferraum</button>
+                        </div>
+                        <div class="search-wrap">
+                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                            <input id="searchInput" type="search" placeholder="Loadout oder Item suchen…">
+                        </div>
+                        <div class="tabs" role="tablist">
+                            <button class="tab active" data-tab="all">Alle <span class="tab-count" id="countAll">0</span></button>
+                            <button class="tab" data-tab="model">Modelle <span class="tab-count" id="countModel">0</span></button>
+                            <button class="tab" data-tab="plate">Kennz. <span class="tab-count" id="countPlate">0</span></button>
+                        </div>
+                        <button id="newLoadoutBtn" class="btn btn-primary btn-block">
+                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                            Neuer Loadout
+                        </button>
+                    </div>
+                    <div id="loadoutList" class="loadout-list"></div>
+                    <div class="sidebar-foot">
+                        <span><strong id="statItems">0</strong> Items in <strong id="statLoadouts">0</strong> Loadouts</span>
+                        <span>Modus: <code id="statMode">once</code></span>
+                    </div>
+                </aside>
+
+                <!-- ============ EDITOR ============ -->
+                <main class="editor">
+                    <div id="emptyState" class="empty-state">
+                        <h2>Kein Loadout ausgewählt</h2>
+                        <p>Wähle links einen Loadout oder lege einen neuen an.</p>
+                    </div>
+
+                    <div id="editorPanel" class="hidden">
+                        <div class="editor-top">
+                            <div class="editor-title">
+                                <div class="editor-badges">
+                                    <span id="editorBadge" class="badge badge-type">Modell</span>
+                                    <span id="editorModeBadge" class="badge badge-mode">once</span>
+                                    <span id="dirtyBadge" class="badge badge-dirty hidden">Nicht gespeichert</span>
+                                </div>
+                                <h2 id="editorTitle">Loadout</h2>
+                            </div>
+                            <div class="editor-actions">
+                                <button id="fillVehicleBtn" class="btn btn-primary" title="Fahrzeug in der Nähe (bis 50m) befüllen">
+                                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 5 5h14l2 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/><path d="M12 12v4"/><path d="M10 14h4"/></svg>
+                                    <span id="fillVehicleBtnLabel">Handschuhfach befüllen</span>
+                                </button>
+                                <button id="copyLoadoutBtn" class="btn btn-outline hidden" title="Loadout als neues Fahrzeugmodell kopieren">Fahrzeug kopieren</button>
+                                <button id="resetEquippedBtn" class="btn btn-outline hidden" title="Erlaubt erneutes Bestücken bei Modus 'once'">Once-Status zurücksetzen</button>
+                                <button id="deleteLoadoutBtn" class="btn btn-danger-outline">Löschen</button>
+                            </div>
+                        </div>
+
+                        <section class="card">
+                            <div class="card-header">
+                                <h3>Grunddaten</h3>
+                                <button id="saveLoadoutBtn" class="btn btn-primary">Speichern</button>
+                            </div>
+                            <div class="form-grid">
+                                <div class="field">
+                                    <label>Typ</label>
+                                    <div class="segmented" id="typeSeg">
+                                        <button data-value="model" class="active">Modell</button>
+                                        <button data-value="plate">Kennzeichen</button>
+                                    </div>
+                                    <small id="keyHint">Nur Kleinbuchstaben, ohne Leerzeichen</small>
+                                </div>
+                                <div class="field">
+                                    <label for="loadoutKey" id="keyLabel">Modellname</label>
+                                    <input id="loadoutKey" type="text" class="mono" placeholder="z. B. hlf20" spellcheck="false" autocomplete="off">
+                                </div>
+                                <div class="field">
+                                    <label>Add-Modus</label>
+                                    <div class="segmented" id="modeSeg">
+                                        <button data-value="once">Einmal</button>
+                                        <button data-value="always">Immer</button>
+                                    </div>
+                                    <small id="modeHint">Items werden pro Fahrzeug nur einmal eingelegt</small>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="card">
+                            <div class="card-header">
+                                <h3 id="itemsSectionTitle">Items im Handschuhfach</h3>
+                                <span id="itemCount" class="pill">0 Items</span>
+                            </div>
+                            <div class="add-item-row">
+                                <input id="itemName" type="text" class="mono" placeholder="Item-Name, z.B. flashlight" spellcheck="false" autocomplete="off">
+                                <div class="amount-input">
+                                    <button id="amountMinus" type="button" tabindex="-1">−</button>
+                                    <input id="itemAmount" type="number" min="1" max="999" value="1">
+                                    <button id="amountPlus" type="button" tabindex="-1">+</button>
+                                </div>
+                                <button id="addItemBtn" class="btn btn-secondary">Hinzufügen</button>
+                            </div>
+                            <div id="itemsList" class="items-list"></div>
+                            <p id="itemsEmpty" class="items-empty hidden">Noch keine Items – füge oben das erste hinzu.</p>
+                        </section>
+                    </div>
+                </main>
+            </div>
+            <div id="notifyxStack" class="notifyx-stack" aria-live="polite"></div>
+        </div>
+    </div>
+
+    <!-- Dialoge außerhalb von #app, damit kein Fullscreen-Layer schwarz rendert -->
+    <div id="confirmOverlay" class="confirm-overlay hidden">
+        <div class="confirm-box">
+            <h3 id="confirmTitle">Loadout löschen?</h3>
+            <p id="confirmText">Diese Aktion kann nicht rückgängig gemacht werden.</p>
+            <div class="confirm-actions">
+                <button id="confirmCancel" class="btn btn-outline">Abbrechen</button>
+                <button id="confirmOk" class="btn btn-danger">Löschen</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="copyOverlay" class="confirm-overlay hidden">
+        <div class="confirm-box">
+            <h3>Fahrzeug kopieren</h3>
+            <p>Alle Items von <code id="copySourceName">—</code> werden als neues Fahrzeugmodell hinterlegt.</p>
+            <div class="field copy-field">
+                <label for="copySpawnName">Neuer Spawn-Name</label>
+                <input id="copySpawnName" type="text" class="mono" placeholder="z. B. hlf20" spellcheck="false" autocomplete="off">
+                <small>Nur Kleinbuchstaben, z. B. hlf20</small>
+            </div>
+            <div class="confirm-actions">
+                <button id="copyCancel" class="btn btn-outline">Abbrechen</button>
+                <button id="copyOk" class="btn btn-primary">Kopieren</button>
+            </div>
+        </div>
+    </div>
+
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
