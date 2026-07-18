@@ -59,7 +59,7 @@ function Lockers.Inventory.ParseLockerId(stashId)
         return nil
     end
 
-    local lockerId = stashId:match(('^%s(%d+)$'):format(STASH_PREFIX))
+    local lockerId = stashId:match('^' .. STASH_PREFIX .. '(%d+)$')
 
     return lockerId and tonumber(lockerId) or nil
 end
